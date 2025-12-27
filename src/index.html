@@ -593,6 +593,314 @@
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+        /* History */
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .history-group {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .history-group-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .history-group-header:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .history-group-arrow {
+            font-size: 10px;
+            color: var(--text-muted);
+            width: 12px;
+        }
+
+        .history-group-name {
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .history-group-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+        }
+
+        .history-group-items {
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+        }
+
+        .history-item {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item.success { border-left: 3px solid var(--success); }
+        .history-item.error { border-left: 3px solid var(--error); }
+        .history-item.running { border-left: 3px solid var(--warning); }
+
+        .history-item-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .history-item-status {
+            font-weight: 600;
+        }
+
+        .history-item-status.success { color: var(--success); }
+        .history-item-status.error { color: var(--error); }
+        .history-item-status.running { color: var(--warning); }
+
+        .history-item-time {
+            color: var(--text-secondary);
+        }
+
+        .history-item-duration {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .history-item-trigger {
+            font-size: 10px;
+            background: var(--accent);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .history-item-error {
+            margin-top: 6px;
+            padding: 6px 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--error);
+        }
+
+        .history-item-output-toggle {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--accent);
+            cursor: pointer;
+        }
+
+        .history-item-output-toggle:hover { text-decoration: underline; }
+
+        .history-item-output {
+            margin-top: 6px;
+            padding: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-secondary);
+            max-height: 100px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .history-item-more {
+            padding: 8px 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px;
+            min-width: 180px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+
+        .context-menu-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .context-menu-separator {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Schedule Modal */
+        .schedule-output {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .schedule-output-text {
+            margin-top: 4px;
+            padding: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-secondary);
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .schedule-time-display {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin: 12px 0;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .schedule-next-time {
+            font-size: 28px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .schedule-next-date {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .schedule-card .schedule-actions button.stop {
+            background: transparent;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .schedule-times-list {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .schedule-time-slot {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+
+        .schedule-time-slot.next {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .schedule-time-slot-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .schedule-time-slot-time {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .schedule-time-slot-next {
+            font-size: 9px;
+            background: var(--accent);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .schedule-time-slot-ran {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .schedule-time-slot-output {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: monospace;
+            background: var(--bg-secondary);
+            padding: 6px 8px;
+            border-radius: 4px;
+            max-height: 60px;
+            overflow: hidden;
+        }
+
+        .schedule-time-slot-output .output-preview {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .schedule-time-slot-output .show-more {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 10px;
+            cursor: pointer;
+            padding: 0;
+            margin-top: 4px;
+        }
+
         /* Schedules */
         .schedules-header {
             display: flex;
@@ -773,6 +1081,7 @@
         <!-- Tabs -->
         <div class="tabs">
             <button class="tab active" data-tab="flows">Flows</button>
+            <button class="tab" data-tab="history">History</button>
             <button class="tab" data-tab="schedules">Schedules</button>
             <button class="tab" data-tab="logs">Logs</button>
             <button class="tab" data-tab="settings">Settings</button>
@@ -791,17 +1100,32 @@
                 </div>
             </div>
 
+            <!-- History Tab -->
+            <div class="tab-content" id="historyTab">
+                <div class="logs-header">
+                    <span>Execution History</span>
+                    <button class="text-btn" id="clearHistoryBtn">Clear All</button>
+                </div>
+                <div class="history-list" id="historyList">
+                    <div class="empty-state" id="historyEmpty">
+                        <div class="empty-icon">📜</div>
+                        <h3>No history yet</h3>
+                        <p>Run some flows to see execution history</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Schedules Tab -->
             <div class="tab-content" id="schedulesTab">
                 <div class="schedules-header">
-                    <span>Active Schedules</span>
-                    <span class="schedule-count" id="scheduleCount">0 running</span>
+                    <span>Schedules</span>
+                    <span class="schedule-count" id="scheduleCount">0 scheduled</span>
                 </div>
                 <div class="schedule-list" id="scheduleList">
                     <div class="empty-state" id="schedulesEmpty">
                         <div class="empty-icon">⏰</div>
-                        <h3>No active schedules</h3>
-                        <p>Enable flows with timers to see them here</p>
+                        <h3>No schedules</h3>
+                        <p>Click ⏰ on a flow to set a schedule</p>
                     </div>
                 </div>
             </div>
@@ -900,6 +1224,79 @@
             </div>
         </main>
 
+        <!-- Context Menu -->
+        <div class="context-menu" id="contextMenu" style="display:none;">
+            <div class="context-menu-item" onclick="contextMenuRun()">▶ Run Now</div>
+            <div class="context-menu-item" onclick="contextMenuHistory()">📜 View History</div>
+            <div class="context-menu-item" onclick="contextMenuFolder()">📂 Open Folder</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" onclick="contextMenuSchedule()">⏰ Set Schedule</div>
+            <div class="context-menu-item" onclick="contextMenuToggle()">🔄 Toggle Enable</div>
+            <div class="context-menu-separator"></div>
+            <div class="context-menu-item" style="color:var(--error)" onclick="contextMenuDelete()">🗑️ Remove</div>
+        </div>
+
+        <!-- Schedule Modal -->
+        <div class="modal-overlay" id="scheduleModal" style="display:none;">
+            <div class="modal-box" style="width:360px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0;">⏰ Set Schedule</h3>
+                    <button class="icon-btn" onclick="closeScheduleModal()">✕</button>
+                </div>
+                <div id="scheduleFlowName" style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;"></div>
+                
+                <div style="margin-bottom:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--text-secondary);">Quick Schedule</label>
+                    <select id="schedulePreset" style="width:100%; padding:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px;">
+                        <option value="">Select preset...</option>
+                        <option value="every 1 minute">Every minute</option>
+                        <option value="every 5 minutes">Every 5 minutes</option>
+                        <option value="every 15 minutes">Every 15 minutes</option>
+                        <option value="every 30 minutes">Every 30 minutes</option>
+                        <option value="every 1 hour">Every hour</option>
+                        <option value="every 6 hours">Every 6 hours</option>
+                        <option value="every 12 hours">Every 12 hours</option>
+                        <option value="every 1 day">Every day</option>
+                        <option value="custom">Custom interval...</option>
+                    </select>
+                </div>
+                
+                <div id="customScheduleSection" style="display:none; margin-bottom:12px;">
+                    <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--text-secondary);">Custom Interval</label>
+                    <div style="display:flex; gap:8px;">
+                        <input type="number" id="customIntervalValue" min="1" value="10" style="flex:1; padding:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px;">
+                        <select id="customIntervalUnit" style="flex:1; padding:10px; background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:6px;">
+                            <option value="seconds">Seconds</option>
+                            <option value="minutes" selected>Minutes</option>
+                            <option value="hours">Hours</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display:flex; gap:8px; margin-top:16px;">
+                    <button onclick="closeScheduleModal()" style="flex:1; padding:10px; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer;">Cancel</button>
+                    <button onclick="removeSchedule()" style="padding:10px 16px; background:transparent; border:1px solid var(--error); color:var(--error); border-radius:6px; cursor:pointer;">Remove</button>
+                    <button onclick="saveSchedule()" style="flex:1; padding:10px; background:var(--accent); border:none; color:white; border-radius:6px; cursor:pointer;">Save Schedule</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Modal -->
+        <div class="modal-overlay" id="outputModal" style="display:none;" onclick="if(event.target===this) closeOutputModal()">
+            <div class="modal-box" style="width:500px; max-width:90vw;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h3 style="margin:0;">Output @ <span id="outputModalTime"></span></h3>
+                    <button class="icon-btn" onclick="closeOutputModal()">✕</button>
+                </div>
+                <div id="outputModalTimestamp" style="font-size:11px; color:var(--text-muted); margin-bottom:12px;"></div>
+                <pre id="outputModalContent" style="background:var(--bg); padding:12px; border-radius:6px; font-size:12px; max-height:400px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; margin:0;"></pre>
+                <div style="margin-top:16px; text-align:right;">
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('outputModalContent').textContent); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 1500);" style="padding:8px 16px; background:var(--bg-tertiary); border:1px solid var(--border); color:var(--text); border-radius:6px; cursor:pointer;">Copy</button>
+                    <button onclick="closeOutputModal()" style="padding:8px 16px; background:var(--accent); border:none; color:white; border-radius:6px; cursor:pointer; margin-left:8px;">Close</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Footer -->
         <footer class="footer">
             <button class="btn secondary" id="syncBtn">
@@ -921,76 +1318,124 @@
 
         // Init
         async function init() {
-            await checkAuth();
-            await loadFlows();
-            await loadLogs();
-            await loadSettings();
-            await loadScheduleInfo();
-            setupEventListeners();
-            setupIpcListeners();
-            startCountdownUpdater();
+            try {
+                await checkAuth();
+                await loadFlows();
+                await loadLogs();
+                await loadHistory();
+                await loadSettings();
+                await loadScheduleInfo();
+                setupEventListeners();
+                setupIpcListeners();
+                startCountdownUpdater();
+            } catch (e) {
+                console.error('Init error:', e);
+            }
         }
 
         // Auth
         async function checkAuth() {
-            const status = await window.runner.getAuthStatus();
-            isLoggedIn = status.loggedIn;
-            
-            document.getElementById('authBanner').style.display = isLoggedIn ? 'none' : 'block';
-            document.getElementById('userBar').style.display = isLoggedIn ? 'flex' : 'none';
-            
-            if (isLoggedIn) {
-                document.getElementById('userEmail').textContent = status.email;
+            try {
+                const status = await window.runner.getAuthStatus();
+                isLoggedIn = status.loggedIn;
+                
+                const authBanner = document.getElementById('authBanner');
+                const userBar = document.getElementById('userBar');
+                const userEmail = document.getElementById('userEmail');
+                
+                if (authBanner) authBanner.style.display = isLoggedIn ? 'none' : 'block';
+                if (userBar) userBar.style.display = isLoggedIn ? 'flex' : 'none';
+                
+                if (isLoggedIn && userEmail) {
+                    userEmail.textContent = status.email;
+                }
+            } catch (e) {
+                console.error('checkAuth error:', e);
             }
         }
 
         // Flows
         async function loadFlows() {
-            flows = await window.runner.getFlows();
-            renderFlows();
+            try {
+                flows = await window.runner.getFlows();
+                renderFlows();
+            } catch (e) {
+                console.error('loadFlows error:', e);
+            }
         }
 
         function renderFlows() {
             const container = document.getElementById('flowList');
             const empty = document.getElementById('flowsEmpty');
+            
+            if (!container) return;
 
             if (flows.length === 0) {
-                empty.style.display = 'flex';
-                container.innerHTML = '';
-                container.appendChild(empty);
+                if (empty) empty.style.display = 'flex';
                 return;
             }
 
-            empty.style.display = 'none';
+            if (empty) empty.style.display = 'none';
             container.innerHTML = flows.map(flow => {
-                const hasSchedule = flow.schedule || hasTimerNode(flow);
+                const hasSchedule = flow.schedule || hasTimerNode(flow) || hasSchedulerNode(flow);
                 const schedInfo = scheduleInfo[flow.id];
-                const isScheduled = schedInfo && flow.localEnabled;
+                const isScheduled = schedInfo?.status === 'scheduled';
+                const hasSaveNode = (flow.nodes || []).some(n => ['save', 'file_output', 'write_file'].includes(n.type));
+                const runCount = flow.runCount || 0;
+                const hasCustomFolder = !!flow.outputFolder;
                 
                 return `
-                <div class="flow-card" data-id="${flow.id}">
+                <div class="flow-card" data-id="${flow.id}" oncontextmenu="showContextMenu(event, '${flow.id}')">
                     <div class="flow-header">
                         <div class="flow-title">
                             <span class="flow-status-dot ${isScheduled ? 'scheduled' : (flow.localEnabled ? 'idle' : 'idle')}"></span>
                             <span class="flow-name">${escapeHtml(flow.name)}</span>
                         </div>
                         <div class="flow-actions">
+                            <button onclick="openFlowFolder('${flow.id}')" title="Open output folder">📂</button>
+                            <button onclick="showFlowHistory('${flow.id}')" title="View history">📜</button>
+                            <button onclick="editSchedule('${flow.id}')" title="Set schedule">⏰</button>
                             <button onclick="runFlow('${flow.id}')">▶ Run</button>
                         </div>
                     </div>
                     <div class="flow-meta">
-                        ${hasSchedule ? `<span>⏰ ${flow.schedule || 'Has timer'}</span>` : '<span>Manual</span>'}
+                        ${hasSchedule ? `
+                            <span onclick="editSchedule('${flow.id}')" style="cursor:pointer;">⏰ ${getScheduleDescription(flow)}</span>
+                            ${isScheduled && schedInfo?.nextRun ? `<span style="color:var(--success);">Next: ${new Date(schedInfo.nextRun).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true})}</span>` : ''}
+                        ` : `<span onclick="editSchedule('${flow.id}')" style="cursor:pointer; color:var(--text-muted);">+ Add schedule</span>`}
+                        <span>🔄 ${runCount}</span>
                         ${flow.lastRun ? `<span>Last: ${formatTime(flow.lastRun)}</span>` : ''}
-                        <span>Runs: ${flow.runCount || 0}</span>
                     </div>
-                    ${isScheduled ? `
-                    <div class="flow-meta" style="color: var(--success); margin-top: 4px;">
-                        <span>Next run: ${formatNextRun(schedInfo.nextRun)}</span>
+                    ${hasSaveNode ? `
+                    <div class="flow-output-folder" style="margin-top:8px; padding:8px; background:var(--bg); border-radius:4px; font-size:11px;">
+                        <div style="display:flex; align-items:center; gap:6px; color:var(--text-muted);">
+                            <span>📁 Output:</span>
+                            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${hasCustomFolder ? 'var(--accent)' : 'var(--text-secondary)'};">
+                                ${hasCustomFolder ? escapeHtml(flow.outputFolder) : '(default)'}
+                            </span>
+                            <button onclick="changeFlowFolder('${flow.id}')" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:10px;">Change</button>
+                            ${hasCustomFolder ? `<button onclick="resetFlowFolder('${flow.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:10px;">Reset</button>` : ''}
+                        </div>
                     </div>
                     ` : ''}
-                    <div class="flow-toggle">
-                        <div class="toggle ${flow.localEnabled ? 'on' : ''}" onclick="toggleFlow('${flow.id}', ${!flow.localEnabled})"></div>
-                        <label>${flow.localEnabled ? (hasSchedule ? 'Scheduled' : 'Enabled') : 'Disabled'}</label>
+                    ${flow.lastOutput ? `
+                    <div class="flow-last-output" style="margin-top:8px; padding:8px; background:var(--bg); border-radius:4px; font-size:11px; max-height:60px; overflow:hidden; color:var(--text-secondary);">
+                        ${escapeHtml(flow.lastOutput.slice(0, 200))}${flow.lastOutput.length > 200 ? '...' : ''}
+                    </div>
+                    ` : ''}
+                    ${isScheduled ? `
+                    <div class="flow-scheduled-status" style="margin-top:8px; padding:8px; background:rgba(34,197,94,0.1); border-radius:4px; display:flex; align-items:center; justify-content:space-between;">
+                        <span style="color:var(--success); font-size:12px;">▶ Running - next at ${new Date(schedInfo.nextRun).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true})}</span>
+                        <button onclick="pauseSchedule('${flow.id}')" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:11px;">⏸ Pause</button>
+                    </div>
+                    ` : hasSchedule ? `
+                    <div class="flow-scheduled-status" style="margin-top:8px; padding:8px; background:rgba(245,158,11,0.1); border-radius:4px; display:flex; align-items:center; justify-content:space-between;">
+                        <span style="color:var(--warning); font-size:12px;">⏸ Paused</span>
+                        <button onclick="resumeSchedule('${flow.id}')" style="background:none; border:none; color:var(--success); cursor:pointer; font-size:11px;">▶ Resume</button>
+                    </div>
+                    ` : ''}
+                    <div class="flow-footer" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+                        <button onclick="deleteFlow('${flow.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:11px;">🗑️ Remove</button>
                     </div>
                 </div>
             `}).join('');
@@ -1002,10 +1447,279 @@
             return nodes.some(n => ['timer', 'scheduler', 'cron'].includes(n.type));
         }
 
+        // History
+        let executionHistory = [];
+        
+        async function loadHistory() {
+            try {
+                executionHistory = await window.runner.getHistory();
+                renderHistory();
+            } catch (e) {
+                console.error('loadHistory error:', e);
+            }
+        }
+        
+        function renderHistory(flowFilter = null) {
+            const container = document.getElementById('historyList');
+            const empty = document.getElementById('historyEmpty');
+            
+            if (!container) return;
+            
+            let items = executionHistory;
+            if (flowFilter) {
+                items = items.filter(h => h.flowId === flowFilter);
+            }
+            
+            if (items.length === 0) {
+                if (empty) empty.style.display = 'flex';
+                container.innerHTML = '';
+                return;
+            }
+            
+            if (empty) empty.style.display = 'none';
+            
+            // Group by flow
+            const grouped = {};
+            items.forEach(item => {
+                if (!grouped[item.flowId]) {
+                    grouped[item.flowId] = {
+                        flowName: item.flowName,
+                        items: []
+                    };
+                }
+                grouped[item.flowId].items.push(item);
+            });
+            
+            container.innerHTML = Object.entries(grouped).map(([flowId, group]) => {
+                const successCount = group.items.filter(i => i.status === 'success').length;
+                const errorCount = group.items.filter(i => i.status === 'error').length;
+                
+                return `
+                <div class="history-group">
+                    <div class="history-group-header" onclick="toggleHistoryGroup(this)">
+                        <span class="history-group-arrow">▶</span>
+                        <span class="history-group-name">${escapeHtml(group.flowName)}</span>
+                        <span class="history-group-stats">
+                            <span style="color:var(--success)">${successCount} ✓</span>
+                            ${errorCount > 0 ? `<span style="color:var(--error)">${errorCount} ✗</span>` : ''}
+                            <span style="color:var(--text-muted)">${group.items.length} runs</span>
+                        </span>
+                    </div>
+                    <div class="history-group-items" style="display:none;">
+                        ${group.items.slice(0, 20).map(item => `
+                            <div class="history-item ${item.status}">
+                                <div class="history-item-header">
+                                    <span class="history-item-status ${item.status}">${item.status === 'success' ? '✓' : item.status === 'error' ? '✗' : '⋯'}</span>
+                                    <span class="history-item-time">${formatTime(item.timestamp)}</span>
+                                    ${item.triggerTime ? `<span class="history-item-trigger">@${formatTimeDisplay(item.triggerTime)}</span>` : ''}
+                                    ${item.duration ? `<span class="history-item-duration">${item.duration}ms</span>` : ''}
+                                </div>
+                                ${item.error ? `<div class="history-item-error">${escapeHtml(item.error)}</div>` : ''}
+                                ${item.output ? `
+                                    <div class="history-item-output-toggle" onclick="event.stopPropagation(); toggleHistoryOutput(this)">▶ Show Output</div>
+                                    <div class="history-item-output" style="display:none;">${escapeHtml(item.output)}</div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                        ${group.items.length > 20 ? `<div class="history-item-more">+ ${group.items.length - 20} more runs</div>` : ''}
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function toggleHistoryGroup(el) {
+            const items = el.nextElementSibling;
+            const arrow = el.querySelector('.history-group-arrow');
+            if (items.style.display === 'none') {
+                items.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                items.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+        
+        function toggleHistoryOutput(el) {
+            const output = el.nextElementSibling;
+            if (output.style.display === 'none') {
+                output.style.display = 'block';
+                el.textContent = '▼ Hide Output';
+            } else {
+                output.style.display = 'none';
+                el.textContent = '▶ Show Output';
+            }
+        }
+        
+        async function clearHistory() {
+            if (!confirm('Clear all execution history?')) return;
+            await window.runner.clearHistory();
+            executionHistory = [];
+            renderHistory();
+        }
+        
+        function showFlowHistory(flowId) {
+            // Switch to history tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-tab="history"]').classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('historyTab').classList.add('active');
+            
+            // Render filtered history
+            renderHistory(flowId);
+        }
+        
+        async function deleteFlow(flowId) {
+            if (!confirm('Remove this flow from the runner?')) return;
+            try {
+                await window.runner.deleteFlow(flowId);
+                flows = flows.filter(f => f.id !== flowId);
+                renderFlows();
+            } catch (e) {
+                console.error('deleteFlow error:', e);
+            }
+        }
+        
+        async function openFlowFolder(flowId) {
+            await window.runner.openFlowOutputFolder(flowId);
+        }
+        
+        async function changeFlowFolder(flowId) {
+            const result = await window.runner.selectFolder();
+            if (result?.path) {
+                await window.runner.setFlowOutputFolder(flowId, result.path);
+                // Update local flow data
+                const flow = flows.find(f => f.id === flowId);
+                if (flow) flow.outputFolder = result.path;
+                renderFlows();
+            }
+        }
+        
+        async function resetFlowFolder(flowId) {
+            if (!confirm('Reset to default output folder?')) return;
+            await window.runner.setFlowOutputFolder(flowId, null);
+            // Update local flow data
+            const flow = flows.find(f => f.id === flowId);
+            if (flow) delete flow.outputFolder;
+            renderFlows();
+        }
+        
+        function openOutputFolder() {
+            window.runner.openOutputFolder();
+        }
+
+        // Context Menu
+        let contextMenuFlowId = null;
+        
+        function showContextMenu(e, flowId) {
+            e.preventDefault();
+            contextMenuFlowId = flowId;
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+        }
+        
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+            contextMenuFlowId = null;
+        }
+        
+        function contextMenuRun() {
+            if (contextMenuFlowId) runFlow(contextMenuFlowId);
+            hideContextMenu();
+        }
+        
+        function contextMenuHistory() {
+            if (contextMenuFlowId) showFlowHistory(contextMenuFlowId);
+            hideContextMenu();
+        }
+        
+        function contextMenuFolder() {
+            if (contextMenuFlowId) openFlowFolder(contextMenuFlowId);
+            hideContextMenu();
+        }
+        
+        function contextMenuSchedule() {
+            if (contextMenuFlowId) editSchedule(contextMenuFlowId);
+            hideContextMenu();
+        }
+        
+        function contextMenuToggle() {
+            if (contextMenuFlowId) {
+                const flow = flows.find(f => f.id === contextMenuFlowId);
+                if (flow) toggleFlow(contextMenuFlowId, !flow.localEnabled);
+            }
+            hideContextMenu();
+        }
+        
+        function contextMenuDelete() {
+            if (contextMenuFlowId) deleteFlow(contextMenuFlowId);
+            hideContextMenu();
+        }
+        
+        // Schedule Modal
+        let scheduleModalFlowId = null;
+        
+        function editSchedule(flowId) {
+            scheduleModalFlowId = flowId;
+            const flow = flows.find(f => f.id === flowId);
+            if (!flow) return;
+            
+            document.getElementById('scheduleFlowName').textContent = flow.name;
+            document.getElementById('schedulePreset').value = flow.schedule || '';
+            document.getElementById('customScheduleSection').style.display = 'none';
+            document.getElementById('scheduleModal').style.display = 'flex';
+        }
+        
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').style.display = 'none';
+            scheduleModalFlowId = null;
+        }
+        
+        async function saveSchedule() {
+            if (!scheduleModalFlowId) return;
+            
+            let schedule = document.getElementById('schedulePreset').value;
+            
+            if (schedule === 'custom') {
+                const val = document.getElementById('customIntervalValue').value;
+                const unit = document.getElementById('customIntervalUnit').value;
+                schedule = `every ${val} ${unit}`;
+            }
+            
+            if (!schedule) {
+                alert('Please select a schedule');
+                return;
+            }
+            
+            await window.runner.setSchedule(scheduleModalFlowId, schedule);
+            
+            // Reload data from store
+            await loadFlows();
+            await loadScheduleInfo();
+            closeScheduleModal();
+        }
+        
+        async function removeSchedule() {
+            if (!scheduleModalFlowId) return;
+            
+            await window.runner.setSchedule(scheduleModalFlowId, null);
+            
+            // Reload data from store
+            await loadFlows();
+            await loadScheduleInfo();
+            closeScheduleModal();
+        }
+
         // Schedule Info
         async function loadScheduleInfo() {
-            scheduleInfo = await window.runner.getAllScheduleInfo();
-            renderSchedules();
+            try {
+                scheduleInfo = await window.runner.getAllScheduleInfo();
+                renderSchedules();
+                renderFlows(); // Update flow cards with schedule status
+            } catch (e) {
+                console.error('loadScheduleInfo error:', e);
+            }
         }
 
         function renderSchedules() {
@@ -1013,55 +1727,173 @@
             const empty = document.getElementById('schedulesEmpty');
             const countEl = document.getElementById('scheduleCount');
             
-            const activeSchedules = Object.entries(scheduleInfo).filter(([id, info]) => info.status === 'scheduled');
+            if (!container) return;
             
-            countEl.textContent = `${activeSchedules.length} running`;
+            // Get flows with schedules
+            const scheduledFlows = flows.filter(f => f.schedule || hasTimerNode(f) || hasSchedulerNode(f));
             
-            if (activeSchedules.length === 0) {
-                empty.style.display = 'flex';
+            if (countEl) countEl.textContent = `${scheduledFlows.length} scheduled`;
+            
+            if (scheduledFlows.length === 0) {
+                if (empty) empty.style.display = 'flex';
                 container.innerHTML = '';
-                container.appendChild(empty);
                 return;
             }
 
-            empty.style.display = 'none';
-            container.innerHTML = activeSchedules.map(([flowId, info]) => {
-                const flow = flows.find(f => f.id === flowId) || { name: 'Unknown Flow' };
+            if (empty) empty.style.display = 'none';
+            
+            container.innerHTML = scheduledFlows.map(flow => {
+                const info = scheduleInfo[flow.id] || {};
+                const isRunning = info.status === 'scheduled';
+                const schedulerNode = getSchedulerNode(flow);
+                const hasTimes = schedulerNode && schedulerNode.data?.times?.length > 0;
+                const times = hasTimes ? schedulerNode.data.times : [];
+                const timeOutputs = info.timeOutputs || {};
+                
+                const scheduleText = flow.schedule || (hasTimes ? `${times.length} times daily` : 'Timer');
+                const nextRunTime = info.nextRun ? new Date(info.nextRun).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--';
+                const nextRunDate = info.nextRun ? new Date(info.nextRun).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
+                
+                // Build times list with outputs
+                let timesHTML = '';
+                if (hasTimes) {
+                    timesHTML = `
+                    <div class="schedule-times-list">
+                        <div class="schedule-info-label" style="margin-bottom:8px;">Scheduled Times</div>
+                        ${times.map(time => {
+                            const output = timeOutputs[time];
+                            const isNext = info.nextTime === time;
+                            const formattedTime = formatTimeDisplay(time);
+                            return `
+                            <div class="schedule-time-slot ${isNext ? 'next' : ''}" data-time="${time}">
+                                <div class="schedule-time-slot-header">
+                                    <span class="schedule-time-slot-time">${formattedTime}</span>
+                                    ${isNext ? '<span class="schedule-time-slot-next">NEXT</span>' : ''}
+                                    ${output ? `<span class="schedule-time-slot-ran">Last: ${formatTime(output.timestamp)}</span>` : ''}
+                                </div>
+                                ${output ? `
+                                <div class="schedule-time-slot-output">
+                                    <div class="output-preview">${escapeHtml(output.output?.slice(0, 100) || '')}${output.output?.length > 100 ? '...' : ''}</div>
+                                    ${output.output?.length > 100 ? `<button onclick="showFullOutput('${flow.id}', '${time}')" class="show-more">Show more</button>` : ''}
+                                </div>
+                                ` : '<div class="schedule-time-slot-output" style="color:var(--text-muted);">Not run yet</div>'}
+                            </div>
+                        `}).join('')}
+                    </div>`;
+                }
                 
                 return `
-                <div class="schedule-card active" data-id="${flowId}">
+                <div class="schedule-card ${isRunning ? 'active' : ''}" data-id="${flow.id}">
                     <div class="schedule-flow-name">
-                        <span class="pulse"></span>
+                        ${isRunning ? '<span class="pulse"></span>' : '<span style="width:8px;height:8px;background:var(--warning);border-radius:50%;"></span>'}
                         ${escapeHtml(flow.name)}
+                    </div>
+                    <div class="schedule-time-display">
+                        <div class="schedule-next-time">${nextRunTime}</div>
+                        <div class="schedule-next-date">${nextRunDate}</div>
                     </div>
                     <div class="schedule-info">
                         <div class="schedule-info-item">
-                            <span class="schedule-info-label">Schedule</span>
-                            <span class="schedule-info-value">${escapeHtml(info.description || 'Running')}</span>
+                            <span class="schedule-info-label">Type</span>
+                            <span class="schedule-info-value">${escapeHtml(info.description || scheduleText)}</span>
                         </div>
                         <div class="schedule-info-item">
-                            <span class="schedule-info-label">Next Run</span>
-                            <span class="schedule-info-value next-run" data-next="${info.nextRun}">${formatNextRun(info.nextRun)}</span>
-                        </div>
-                        <div class="schedule-info-item">
-                            <span class="schedule-info-label">Started</span>
-                            <span class="schedule-info-value">${formatTime(info.startedAt)}</span>
+                            <span class="schedule-info-label">Countdown</span>
+                            <span class="schedule-info-value countdown-value" data-flow-id="${flow.id}">${isRunning ? formatCountdown(info.nextRun) : 'Paused'}</span>
                         </div>
                         <div class="schedule-info-item">
                             <span class="schedule-info-label">Total Runs</span>
                             <span class="schedule-info-value">${flow.runCount || 0}</span>
                         </div>
                     </div>
-                    <div class="schedule-countdown">
-                        <span class="countdown-label">Next execution in:</span>
-                        <span class="countdown-value" data-countdown="${info.nextRun}">${formatCountdown(info.nextRun)}</span>
+                    ${timesHTML}
+                    ${!hasTimes && flow.lastOutput ? `
+                    <div class="schedule-output">
+                        <span class="schedule-info-label">Latest Output</span>
+                        <div class="schedule-output-text">${escapeHtml(flow.lastOutput.slice(0, 150))}${flow.lastOutput.length > 150 ? '...' : ''}</div>
                     </div>
+                    ` : ''}
                     <div class="schedule-actions">
-                        <button onclick="runFlow('${flowId}')">▶ Run Now</button>
-                        <button class="stop" onclick="toggleFlow('${flowId}', false)">⏹ Stop</button>
+                        <button onclick="runFlow('${flow.id}')">▶ Run Now</button>
+                        ${isRunning ? 
+                            `<button class="stop" onclick="pauseSchedule('${flow.id}')">⏸ Pause</button>` : 
+                            `<button onclick="resumeSchedule('${flow.id}')">▶ Resume</button>`
+                        }
+                        <button onclick="editSchedule('${flow.id}')" style="margin-left:auto;">✏️ Edit</button>
+                        <button onclick="removeScheduleConfirm('${flow.id}')" style="color:var(--error);">🗑️</button>
                     </div>
                 </div>
             `}).join('');
+        }
+        
+        function hasSchedulerNode(flow) {
+            return (flow.nodes || []).some(n => n.type === 'scheduler');
+        }
+        
+        function getSchedulerNode(flow) {
+            return (flow.nodes || []).find(n => n.type === 'scheduler');
+        }
+        
+        function getScheduleDescription(flow) {
+            if (flow.schedule) return flow.schedule;
+            
+            const schedulerNode = getSchedulerNode(flow);
+            if (schedulerNode?.data?.times?.length > 0) {
+                const times = schedulerNode.data.times;
+                if (times.length === 1) {
+                    return `Daily @ ${formatTimeDisplay(times[0])}`;
+                } else if (times.length <= 3) {
+                    return times.map(t => formatTimeDisplay(t)).join(', ');
+                } else {
+                    return `${times.length} times daily`;
+                }
+            }
+            
+            if (hasTimerNode(flow)) return 'Timer';
+            return 'Manual';
+        }
+        
+        function formatTimeDisplay(time24) {
+            if (!time24) return '--';
+            const [h, m] = time24.split(':');
+            const hour = parseInt(h);
+            const suffix = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${m} ${suffix}`;
+        }
+        
+        function showFullOutput(flowId, time) {
+            const info = scheduleInfo[flowId];
+            const output = info?.timeOutputs?.[time]?.output || '';
+            const timestamp = info?.timeOutputs?.[time]?.timestamp;
+            
+            document.getElementById('outputModalTime').textContent = formatTimeDisplay(time);
+            document.getElementById('outputModalTimestamp').textContent = timestamp ? formatTime(timestamp) : '';
+            document.getElementById('outputModalContent').textContent = output;
+            document.getElementById('outputModal').style.display = 'flex';
+        }
+        
+        function closeOutputModal() {
+            document.getElementById('outputModal').style.display = 'none';
+        }
+        
+        async function pauseSchedule(flowId) {
+            await window.runner.toggleFlow(flowId, false);
+            await loadFlows();
+            await loadScheduleInfo();
+        }
+        
+        async function resumeSchedule(flowId) {
+            await window.runner.toggleFlow(flowId, true);
+            await loadFlows();
+            await loadScheduleInfo();
+        }
+        
+        async function removeScheduleConfirm(flowId) {
+            if (!confirm('Remove this schedule?')) return;
+            await window.runner.setSchedule(flowId, null);
+            await loadFlows();
+            await loadScheduleInfo();
         }
 
         function formatNextRun(iso) {
@@ -1099,8 +1931,13 @@
         function startCountdownUpdater() {
             if (countdownInterval) clearInterval(countdownInterval);
             countdownInterval = setInterval(() => {
-                document.querySelectorAll('[data-countdown]').forEach(el => {
-                    el.textContent = formatCountdown(el.dataset.countdown);
+                // Update countdowns in schedule cards
+                document.querySelectorAll('.countdown-value[data-flow-id]').forEach(el => {
+                    const flowId = el.dataset.flowId;
+                    const info = scheduleInfo[flowId];
+                    if (info?.nextRun) {
+                        el.textContent = formatCountdown(info.nextRun);
+                    }
                 });
             }, 1000);
         }
@@ -1117,12 +1954,18 @@
 
         // Logs
         async function loadLogs() {
-            logs = await window.runner.getLogs();
-            renderLogs();
+            try {
+                logs = await window.runner.getLogs();
+                renderLogs();
+            } catch (e) {
+                console.error('loadLogs error:', e);
+            }
         }
 
         function renderLogs() {
             const container = document.getElementById('logList');
+            if (!container) return;
+            
             if (logs.length === 0) {
                 container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No logs yet</p></div>';
                 return;
@@ -1139,55 +1982,70 @@
 
         // Settings
         async function loadSettings() {
-            const settings = await window.runner.getSettings();
-            const apiKeys = await window.runner.getApiKeys();
-            
-            // Basic settings
-            document.getElementById('outputFolder').value = settings.outputFolder || '';
-            document.getElementById('ollamaUrl').value = settings.ollamaUrl || 'http://localhost:11434';
-            
-            // Toggles
-            document.getElementById('startMinimized').classList.toggle('on', settings.startMinimized);
-            document.getElementById('runOnStartup').classList.toggle('on', settings.runOnStartup);
-            document.getElementById('retryFailedFlows').classList.toggle('on', settings.retryFailedFlows);
-            document.getElementById('notifications').classList.toggle('on', settings.notifications !== false);
-            document.getElementById('notifyOnComplete').classList.toggle('on', settings.notifyOnComplete !== false);
-            document.getElementById('notifyOnError').classList.toggle('on', settings.notifyOnError !== false);
-            
-            // API Keys
-            document.getElementById('apiKeyOpenai').value = apiKeys.openai || '';
-            document.getElementById('apiKeyAnthropic').value = apiKeys.anthropic || '';
-            document.getElementById('apiKeyGroq').value = apiKeys.groq || '';
-            document.getElementById('apiKeyDeepseek').value = apiKeys.deepseek || '';
-            document.getElementById('apiKeyGrok').value = apiKeys.grok || '';
+            try {
+                const settings = await window.runner.getSettings();
+                const apiKeys = await window.runner.getApiKeys();
+                
+                // Basic settings
+                const outputFolder = document.getElementById('outputFolder');
+                const ollamaUrl = document.getElementById('ollamaUrl');
+                if (outputFolder) outputFolder.value = settings.outputFolder || '';
+                if (ollamaUrl) ollamaUrl.value = settings.ollamaUrl || 'http://localhost:11434';
+                
+                // Toggles
+                document.getElementById('startMinimized')?.classList.toggle('on', settings.startMinimized);
+                document.getElementById('runOnStartup')?.classList.toggle('on', settings.runOnStartup);
+                document.getElementById('retryFailedFlows')?.classList.toggle('on', settings.retryFailedFlows);
+                document.getElementById('notifications')?.classList.toggle('on', settings.notifications !== false);
+                document.getElementById('notifyOnComplete')?.classList.toggle('on', settings.notifyOnComplete !== false);
+                document.getElementById('notifyOnError')?.classList.toggle('on', settings.notifyOnError !== false);
+                
+                // API Keys
+                const keyOpenai = document.getElementById('apiKeyOpenai');
+                const keyAnthropic = document.getElementById('apiKeyAnthropic');
+                const keyGroq = document.getElementById('apiKeyGroq');
+                const keyDeepseek = document.getElementById('apiKeyDeepseek');
+                const keyGrok = document.getElementById('apiKeyGrok');
+                if (keyOpenai) keyOpenai.value = apiKeys.openai || '';
+                if (keyAnthropic) keyAnthropic.value = apiKeys.anthropic || '';
+                if (keyGroq) keyGroq.value = apiKeys.groq || '';
+                if (keyDeepseek) keyDeepseek.value = apiKeys.deepseek || '';
+                if (keyGrok) keyGrok.value = apiKeys.grok || '';
+            } catch (e) {
+                console.error('loadSettings error:', e);
+            }
         }
 
         async function saveSettings() {
-            const settings = {
-                outputFolder: document.getElementById('outputFolder').value,
-                ollamaUrl: document.getElementById('ollamaUrl').value,
-                startMinimized: document.getElementById('startMinimized').classList.contains('on'),
-                runOnStartup: document.getElementById('runOnStartup').classList.contains('on'),
-                retryFailedFlows: document.getElementById('retryFailedFlows').classList.contains('on'),
-                notifications: document.getElementById('notifications').classList.contains('on'),
-                notifyOnComplete: document.getElementById('notifyOnComplete').classList.contains('on'),
-                notifyOnError: document.getElementById('notifyOnError').classList.contains('on'),
-                maxRetries: 3,
-                retryDelaySeconds: 60
-            };
-            
-            const apiKeys = {
-                openai: document.getElementById('apiKeyOpenai').value,
-                anthropic: document.getElementById('apiKeyAnthropic').value,
-                groq: document.getElementById('apiKeyGroq').value,
-                deepseek: document.getElementById('apiKeyDeepseek').value,
-                grok: document.getElementById('apiKeyGrok').value
-            };
-            
-            await window.runner.saveSettings(settings);
-            await window.runner.saveApiKeys(apiKeys);
-            
-            showToast('Settings saved!');
+            try {
+                const settings = {
+                    outputFolder: document.getElementById('outputFolder')?.value || '',
+                    ollamaUrl: document.getElementById('ollamaUrl')?.value || 'http://localhost:11434',
+                    startMinimized: document.getElementById('startMinimized')?.classList.contains('on') || false,
+                    runOnStartup: document.getElementById('runOnStartup')?.classList.contains('on') || false,
+                    retryFailedFlows: document.getElementById('retryFailedFlows')?.classList.contains('on') || false,
+                    notifications: document.getElementById('notifications')?.classList.contains('on') !== false,
+                    notifyOnComplete: document.getElementById('notifyOnComplete')?.classList.contains('on') !== false,
+                    notifyOnError: document.getElementById('notifyOnError')?.classList.contains('on') !== false,
+                    maxRetries: 3,
+                    retryDelaySeconds: 60
+                };
+                
+                const apiKeys = {
+                    openai: document.getElementById('apiKeyOpenai')?.value || '',
+                    anthropic: document.getElementById('apiKeyAnthropic')?.value || '',
+                    groq: document.getElementById('apiKeyGroq')?.value || '',
+                    deepseek: document.getElementById('apiKeyDeepseek')?.value || '',
+                    grok: document.getElementById('apiKeyGrok')?.value || ''
+                };
+                
+                await window.runner.saveSettings(settings);
+                await window.runner.saveApiKeys(apiKeys);
+                
+                showToast('Settings saved!');
+            } catch (e) {
+                console.error('saveSettings error:', e);
+            }
         }
         
         function showToast(message) {
@@ -1214,30 +2072,60 @@
 
         // Event Listeners
         function setupEventListeners() {
+            // Hide context menu on click anywhere
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu')) {
+                    hideContextMenu();
+                }
+            });
+            
+            // Close modal on overlay click
+            document.getElementById('scheduleModal')?.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    closeScheduleModal();
+                }
+            });
+            
+            // Schedule preset change
+            document.getElementById('schedulePreset')?.addEventListener('change', (e) => {
+                const custom = document.getElementById('customScheduleSection');
+                if (e.target.value === 'custom') {
+                    custom.style.display = 'block';
+                } else {
+                    custom.style.display = 'none';
+                }
+            });
+
             // Tabs
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                     tab.classList.add('active');
-                    document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+                    const tabContent = document.getElementById(tab.dataset.tab + 'Tab');
+                    if (tabContent) tabContent.classList.add('active');
+                    
+                    // Reset history filter when clicking history tab directly
+                    if (tab.dataset.tab === 'history') {
+                        renderHistory(null);
+                    }
                 });
             });
 
             // Settings tab button
-            document.getElementById('settingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsBtn')?.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                document.querySelector('[data-tab="settings"]').classList.add('active');
-                document.getElementById('settingsTab').classList.add('active');
+                document.querySelector('[data-tab="settings"]')?.classList.add('active');
+                document.getElementById('settingsTab')?.classList.add('active');
             });
 
             // Auth
-            document.getElementById('loginBtn').addEventListener('click', async () => {
+            document.getElementById('loginBtn')?.addEventListener('click', async () => {
                 await window.runner.login();
             });
 
-            document.getElementById('logoutBtn').addEventListener('click', async () => {
+            document.getElementById('logoutBtn')?.addEventListener('click', async () => {
                 await window.runner.logout();
                 await checkAuth();
                 flows = [];
@@ -1245,8 +2133,9 @@
             });
 
             // Sync
-            document.getElementById('syncBtn').addEventListener('click', async () => {
+            document.getElementById('syncBtn')?.addEventListener('click', async () => {
                 const btn = document.getElementById('syncBtn');
+                if (!btn) return;
                 btn.disabled = true;
                 btn.innerHTML = '<span class="loading"></span> Syncing...';
                 
@@ -1262,19 +2151,22 @@
             });
 
             // Open Designer
-            document.getElementById('openDesignerBtn').addEventListener('click', () => {
+            document.getElementById('openDesignerBtn')?.addEventListener('click', () => {
                 window.runner.openExternal('https://emergentflow.io/app');
             });
 
             // Clear logs
-            document.getElementById('clearLogsBtn').addEventListener('click', async () => {
+            document.getElementById('clearLogsBtn')?.addEventListener('click', async () => {
                 await window.runner.clearLogs();
                 logs = [];
                 renderLogs();
             });
 
+            // Clear history
+            document.getElementById('clearHistoryBtn')?.addEventListener('click', clearHistory);
+
             // Save settings
-            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            document.getElementById('saveSettingsBtn')?.addEventListener('click', saveSettings);
 
             // Toggle clicks
             document.querySelectorAll('.settings-panel .toggle').forEach(toggle => {
@@ -1284,17 +2176,18 @@
             });
 
             // Folder picker
-            document.getElementById('selectFolderBtn').addEventListener('click', async () => {
+            document.getElementById('selectFolderBtn')?.addEventListener('click', async () => {
                 const result = await window.runner.selectFolder();
-                if (result.path) {
-                    document.getElementById('outputFolder').value = result.path;
+                if (result?.path) {
+                    const folder = document.getElementById('outputFolder');
+                    if (folder) folder.value = result.path;
                 }
             });
 
             // Open folder
-            document.getElementById('openFolderBtn').addEventListener('click', async () => {
-                const folder = document.getElementById('outputFolder').value;
-                await window.runner.openFolder(folder);
+            document.getElementById('openFolderBtn')?.addEventListener('click', async () => {
+                const folder = document.getElementById('outputFolder')?.value;
+                if (folder) await window.runner.openFolder(folder);
             });
         }
 
@@ -1338,6 +2231,10 @@
                 await loadFlows();
                 await loadScheduleInfo();
             });
+
+            window.runner.onHistoryUpdated(async () => {
+                await loadHistory();
+            });
         }
 
         // Utilities
@@ -1365,7 +2262,11 @@
         }
 
         // Start
-        init();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>

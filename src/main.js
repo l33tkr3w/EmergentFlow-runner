@@ -46,7 +46,9 @@ function addExecutionHistory(flowId, flowName, status, details = {}) {
         timestamp: new Date().toISOString(),
         duration: details.duration || 0,
         error: details.error || null,
-        outputFile: details.outputFile || null
+        output: details.output || null,
+        outputFile: details.outputFile || null,
+        triggerTime: details.triggerTime || null // For scheduler nodes
     });
     
     // Keep last 100 executions
@@ -110,6 +112,38 @@ const API_URL = 'https://emergentflow.io';
 // Flow execution state
 const runningFlows = new Map(); // flowId -> { interval, status }
 const flowLogs = [];
+const sseClients = new Set(); // SSE connections from browser
+
+// Broadcast event to all SSE clients
+function broadcastSSE(event, data) {
+    const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const client of sseClients) {
+        try {
+            client.write(message);
+        } catch (e) {
+            sseClients.delete(client);
+        }
+    }
+}
+
+// Broadcast updated flow list to all SSE clients
+function broadcastFlowList() {
+    const flows = store.get('flows') || [];
+    const flowList = flows.map(f => {
+        const running = runningFlows.get(f.id);
+        return {
+            id: f.id,
+            name: f.name,
+            enabled: f.localEnabled,
+            schedule: f.schedule,
+            status: running?.status || (f.localEnabled ? 'IDLE' : 'DISABLED'),
+            lastRun: f.lastRun,
+            runCount: f.runCount || 0,
+            nextRun: running?.nextRun
+        };
+    });
+    broadcastSSE('flow_list', flowList);
+}
 
 // ============================================
 // WINDOW MANAGEMENT
@@ -246,9 +280,10 @@ async function syncFlows() {
 
         store.set('flows', flows);
         
-        // Restart scheduled flows
+        // Restart scheduled flows (including those with scheduler nodes)
         flows.forEach(flow => {
-            if (flow.localEnabled && flow.schedule) {
+            const hasSchedulerNode = (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0);
+            if (flow.localEnabled && (flow.schedule || hasSchedulerNode)) {
                 startScheduledFlow(flow);
             }
         });
@@ -271,7 +306,9 @@ ipcMain.handle('flows:toggle', async (event, { flowId, enabled }) => {
     store.set('flows', flows);
 
     if (enabled) {
-        if (flow.schedule) {
+        // Check for schedule or scheduler node
+        const hasSchedulerNode = (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0);
+        if (flow.schedule || hasSchedulerNode) {
             startScheduledFlow(flow);
         }
         addLog(flowId, flow.name, 'info', 'Flow enabled');
@@ -299,6 +336,90 @@ ipcMain.handle('flows:stop', async (event, flowId) => {
     return { ok: true };
 });
 
+ipcMain.handle('flows:delete', async (event, flowId) => {
+    stopFlow(flowId);
+    const flows = store.get('flows') || [];
+    const newFlows = flows.filter(f => f.id !== flowId);
+    store.set('flows', newFlows);
+    addLog(flowId, 'Flow', 'info', 'Flow removed from runner');
+    return { ok: true };
+});
+
+ipcMain.handle('flows:setSchedule', async (event, { flowId, schedule }) => {
+    const flows = store.get('flows') || [];
+    const flow = flows.find(f => f.id === flowId);
+    if (!flow) return { error: 'Flow not found' };
+    
+    // Stop any existing schedule
+    stopFlow(flowId);
+    
+    if (schedule) {
+        flow.schedule = schedule;
+        flow.localEnabled = true;
+        store.set('flows', flows);
+        
+        // Start the new schedule
+        startScheduledFlow(flow);
+        addLog(flowId, flow.name, 'info', `Schedule set: ${schedule}`);
+    } else {
+        delete flow.schedule;
+        store.set('flows', flows);
+        addLog(flowId, flow.name, 'info', 'Schedule removed');
+    }
+    
+    return { ok: true, schedule: flow.schedule };
+});
+
+ipcMain.handle('flows:setOutputFolder', async (event, { flowId, folder }) => {
+    const flows = store.get('flows') || [];
+    const flow = flows.find(f => f.id === flowId);
+    if (flow) {
+        flow.outputFolder = folder || null; // null means use default
+        store.set('flows', flows);
+        return { ok: true, folder: flow.outputFolder };
+    }
+    return { error: 'Flow not found' };
+});
+
+ipcMain.handle('flows:getOutputFolder', async (event, flowId) => {
+    const flows = store.get('flows') || [];
+    const flow = flows.find(f => f.id === flowId);
+    if (flow) {
+        if (flow.outputFolder) {
+            return { folder: flow.outputFolder, isCustom: true };
+        } else {
+            // Return default path
+            const baseFolder = store.get('settings.outputFolder') || (app.getPath('documents') + '/EmergentFlow');
+            const safeName = flow.name.replace(/[^a-z0-9]/gi, '_') || 'Untitled';
+            return { folder: path.join(baseFolder, safeName), isCustom: false };
+        }
+    }
+    return { error: 'Flow not found' };
+});
+
+ipcMain.handle('flows:openOutputFolder', async (event, flowId) => {
+    const flows = store.get('flows') || [];
+    const flow = flows.find(f => f.id === flowId);
+    if (flow) {
+        let folder;
+        if (flow.outputFolder) {
+            folder = flow.outputFolder;
+        } else {
+            const baseFolder = store.get('settings.outputFolder') || (app.getPath('documents') + '/EmergentFlow');
+            const safeName = flow.name.replace(/[^a-z0-9]/gi, '_') || 'Untitled';
+            folder = path.join(baseFolder, safeName);
+        }
+        
+        // Create if doesn't exist
+        if (!fs.existsSync(folder)) {
+            fs.mkdirSync(folder, { recursive: true });
+        }
+        shell.openPath(folder);
+        return { ok: true };
+    }
+    return { error: 'Flow not found' };
+});
+
 // ============================================
 // FLOW EXECUTION ENGINE
 // ============================================
@@ -311,6 +432,9 @@ async function executeFlow(flow) {
     runningFlows.set(flowId, { ...runningFlows.get(flowId), status: 'running' });
     mainWindow?.webContents.send('flow:statusChange', { flowId, status: 'running' });
     addExecutionHistory(flowId, flow.name, 'running');
+    
+    // Broadcast to browser
+    broadcastSSE('flow_start', { flow_id: flowId, name: flow.name });
 
     try {
         addLog(flowId, flow.name, 'info', 'Executing flow...');
@@ -340,14 +464,33 @@ async function executeFlow(flow) {
             for (const conn of connections.filter(c => c.to === nodeId)) {
                 const sourceOutput = await executeNode(conn.from);
                 if (sourceOutput !== null) {
-                    inputs[conn.toPort || 'input'] = sourceOutput[conn.fromPort || 'output'];
+                    const fromPort = conn.fromPort || 'output';
+                    const toPort = conn.toPort || 'input';
+                    const value = sourceOutput[fromPort] || sourceOutput.output || sourceOutput.out;
+                    inputs[toPort] = value;
+                    console.log(`[Flow] ${conn.from} (${fromPort}) -> ${nodeId} (${toPort}):`, value?.toString().slice(0, 50));
                 }
             }
 
+            addLog(flowId, flow.name, 'info', `Executing: ${node.type}`);
+            console.log(`[Flow] Executing node ${node.type} with inputs:`, Object.keys(inputs));
+            
+            // Broadcast node start
+            broadcastSSE('node_start', { flow_id: flowId, node_id: nodeId, type: node.type });
+            
             // Execute this node
             const result = await executeNodeByType(node, inputs, flow);
             executed.add(nodeId);
             nodeOutputs.set(nodeId, result);
+            
+            console.log(`[Flow] Node ${node.type} output:`, result?.output?.toString().slice(0, 100) || 'none');
+            
+            // Broadcast node complete
+            if (result?.error) {
+                broadcastSSE('node_error', { flow_id: flowId, node_id: nodeId, error: result.error });
+            } else {
+                broadcastSSE('node_complete', { flow_id: flowId, node_id: nodeId, output: result?.output?.toString().slice(0, 200) });
+            }
             
             if (result?.output) lastOutput = result.output;
             
@@ -375,7 +518,13 @@ async function executeFlow(flow) {
         }
 
         addLog(flowId, flow.name, 'info', `Flow completed in ${duration}ms`);
-        addExecutionHistory(flowId, flow.name, 'success', { duration });
+        addExecutionHistory(flowId, flow.name, 'success', { 
+            duration, 
+            output: typeof lastOutput === 'string' ? lastOutput.slice(0, 2000) : JSON.stringify(lastOutput).slice(0, 2000)
+        });
+        
+        // Broadcast flow complete
+        broadcastSSE('flow_complete', { flow_id: flowId, name: flow.name, duration });
         
         // Notification
         const settings = store.get('settings');
@@ -387,6 +536,9 @@ async function executeFlow(flow) {
         const duration = Date.now() - startTime;
         addLog(flowId, flow.name, 'error', `Flow failed: ${err.message}`);
         addExecutionHistory(flowId, flow.name, 'error', { duration, error: err.message });
+        
+        // Broadcast flow error
+        broadcastSSE('flow_error', { flow_id: flowId, name: flow.name, error: err.message });
         
         // Error notification
         const settings = store.get('settings');
@@ -420,8 +572,6 @@ async function executeNodeByType(node, inputs, flow) {
     const settings = node.settings || node.data || {};
     const type = node.type;
 
-    addLog(flow.id, flow.name, 'info', `Executing: ${node.name || type}`);
-
     try {
         switch (type) {
             // === INPUT NODES ===
@@ -429,7 +579,7 @@ async function executeNodeByType(node, inputs, flow) {
             case 'input':
             case 'prompt':
             case 'textarea':
-                return { output: settings.text || settings.value || settings.content || '' };
+                return { output: settings.text || settings.value || settings.content || inputs.input || '' };
 
             case 'start':
             case 'button':
@@ -445,7 +595,7 @@ async function executeNodeByType(node, inputs, flow) {
             case 'deepseek':
             case 'xai':
             case 'grok':
-                return await executeLLMNode(node, inputs, settings);
+                return await executeLLMNode(node, inputs, settings, flow);
 
             case 'ollama':
                 return await executeOllamaNode(node, inputs, settings);
@@ -535,9 +685,40 @@ async function executeNodeByType(node, inputs, flow) {
                 return inputs;
 
             case 'timer':
+                // Timer just triggers - outputs the trigger signal
+                return { output: 'triggered', trigger: 'triggered', triggered_at: new Date().toISOString() };
+            
             case 'scheduler':
-                // These trigger flows, not produce output
-                return { output: 'scheduled', triggered_at: new Date().toISOString() };
+                // Scheduler outputs to specific port based on which time triggered
+                const triggeredIndex = node.data?._triggeredPortIndex;
+                if (triggeredIndex !== undefined && triggeredIndex !== null) {
+                    const times = node.data.times || [];
+                    const rawTime = times[triggeredIndex];
+                    let outputTime = rawTime;
+                    
+                    // Format time if 12h format
+                    if (node.data.format !== '24h' && rawTime) {
+                        let [h, m] = rawTime.split(':');
+                        h = parseInt(h);
+                        const suffix = h >= 12 ? ' PM' : ' AM';
+                        h = h % 12 || 12;
+                        outputTime = `${h}:${m}${suffix}`;
+                    }
+                    
+                    // Output to the specific time port (t0, t1, t2, etc.)
+                    const result = { 
+                        trigger: outputTime, 
+                        output: outputTime, 
+                        out: outputTime,
+                        time: outputTime,
+                        index: triggeredIndex
+                    };
+                    result['t' + triggeredIndex] = outputTime;
+                    
+                    addLog(flow.id, flow.name, 'info', `Scheduler fired port t${triggeredIndex} (${outputTime})`);
+                    return result;
+                }
+                return { status: 'waiting' };
 
             // === CODE NODES ===
             case 'code':
@@ -590,38 +771,41 @@ async function executeNodeByType(node, inputs, flow) {
     }
 }
 
-async function executeLLMNode(node, inputs, settings) {
-    const provider = settings.provider || node.type || 'default';
-    
-    // Get API key - first check node settings, then runner's stored keys
-    const storedKeys = store.get('apiKeys') || {};
-    let apiKey = settings.apiKey;
-    
-    if (!apiKey) {
-        // Map provider names to key storage
-        const keyMap = {
-            'openai': 'openai',
-            'anthropic': 'anthropic',
-            'claude': 'anthropic',
-            'groq': 'groq',
-            'deepseek': 'deepseek',
-            'xai': 'grok',
-            'grok': 'grok'
-        };
-        apiKey = storedKeys[keyMap[provider] || provider];
-    }
-    
-    const model = settings.model || 'gpt-4';
+async function executeLLMNode(node, inputs, settings, flow = {}) {
+    // Just read the values directly
+    const provider = settings.provider || node.data?.provider || 'google';
+    const model = settings.model || node.data?.model || 'gemini-2.0-flash';
     const systemPrompt = settings.systemPrompt || settings.system || '';
     
-    // Build prompt from inputs
+    // Get API key for this provider
+    const storedKeys = store.get('apiKeys') || {};
+    const keyMap = { 'xai': 'grok', 'anthropic': 'anthropic', 'openai': 'openai', 'groq': 'groq', 'deepseek': 'deepseek', 'google': 'google', 'gemini': 'google' };
+    const apiKey = storedKeys[keyMap[provider]] || storedKeys[provider] || '';
+    
+    // Build prompt
     let prompt = settings.prompt || '';
     for (const [key, value] of Object.entries(inputs)) {
-        prompt = prompt.replace(new RegExp(`{{\\s*${key}\\s*}}`, 'g'), value);
+        if (typeof value === 'string') {
+            prompt = prompt.replace(new RegExp(`{{\\s*${key}\\s*}}`, 'g'), value);
+        }
         if (!prompt && value) prompt = String(value);
     }
-
+    if (!prompt) {
+        prompt = inputs.input || inputs.in || inputs.prompt || '';
+    }
+    
+    if (!prompt) {
+        return { output: 'Error: No prompt provided' };
+    }
+    
+    // If ollama, use local
+    if (provider === 'ollama') {
+        return await executeOllamaNode(node, inputs, settings);
+    }
+    
     const token = store.get('authToken');
+    
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Calling ${provider} / ${model}`);
     
     try {
         const res = await fetch(`${API_URL}/api/generate`, {
@@ -640,8 +824,15 @@ async function executeLLMNode(node, inputs, settings) {
         });
 
         const data = await res.json();
-        return { output: data.response || data.error || '' };
+        
+        if (data.error) {
+            addLog(flow?.id || 'system', flow?.name || 'LLM', 'error', data.error || data.response);
+            return { output: `Error: ${data.error || data.response}` };
+        }
+        
+        return { output: data.response || '' };
     } catch (err) {
+        addLog(flow?.id || 'system', flow?.name || 'LLM', 'error', err.message);
         return { output: `LLM Error: ${err.message}` };
     }
 }
@@ -1143,7 +1334,26 @@ async function executeSaveNode(node, inputs, settings, flow) {
     const content = inputs.input || inputs.content || Object.values(inputs)[0] || '';
     const filename = settings.filename || `output_${Date.now()}`;
     const format = settings.format || 'txt';
-    const outputFolder = ensureOutputFolder();
+    
+    // Get output folder - check flow-specific first, then default
+    const flows = store.get('flows') || [];
+    const storedFlow = flows.find(f => f.id === flow.id);
+    const baseOutputFolder = store.get('settings.outputFolder') || (app.getPath('documents') + '/EmergentFlow');
+    
+    let outputFolder;
+    if (storedFlow?.outputFolder) {
+        // Use flow-specific output folder
+        outputFolder = storedFlow.outputFolder;
+    } else {
+        // Default: flowName subfolder inside base output folder
+        const safeName = flow.name.replace(/[^a-z0-9]/gi, '_') || 'Untitled';
+        outputFolder = path.join(baseOutputFolder, safeName);
+    }
+    
+    // Ensure folder exists
+    if (!fs.existsSync(outputFolder)) {
+        fs.mkdirSync(outputFolder, { recursive: true });
+    }
     
     // Build full path
     let fullFilename = filename;
@@ -1151,13 +1361,7 @@ async function executeSaveNode(node, inputs, settings, flow) {
         fullFilename = `${filename}.${format}`;
     }
     
-    // Add flow subfolder
-    const flowFolder = path.join(outputFolder, flow.name.replace(/[^a-z0-9]/gi, '_'));
-    if (!fs.existsSync(flowFolder)) {
-        fs.mkdirSync(flowFolder, { recursive: true });
-    }
-    
-    const filePath = path.join(flowFolder, fullFilename);
+    const filePath = path.join(outputFolder, fullFilename);
     
     try {
         let dataToWrite = content;
@@ -1246,6 +1450,20 @@ ipcMain.handle('shell:openFolder', async (event, folderPath) => {
     return { error: 'Folder not found' };
 });
 
+// Open output folder
+ipcMain.handle('shell:openOutputFolder', async () => {
+    const folder = store.get('settings.outputFolder');
+    if (folder) {
+        // Create if doesn't exist
+        if (!fs.existsSync(folder)) {
+            fs.mkdirSync(folder, { recursive: true });
+        }
+        shell.openPath(folder);
+        return { ok: true };
+    }
+    return { error: 'Output folder not configured' };
+});
+
 // ============================================
 // API KEYS (BYOK)
 // ============================================
@@ -1325,9 +1543,20 @@ function getNextRunTime(lastRun, intervalMs) {
     return new Date(next);
 }
 
+// Track outputs per time slot for scheduler nodes
+const schedulerOutputs = new Map(); // flowId -> { "09:00": { output, timestamp }, "12:00": {...} }
+
 function startScheduledFlow(flow) {
     stopFlow(flow.id); // Clear any existing schedule
 
+    // Check for scheduler node with specific times
+    const schedulerNode = (flow.nodes || []).find(n => n.type === 'scheduler');
+    if (schedulerNode && schedulerNode.data?.times?.length > 0) {
+        startTimeBasedScheduler(flow, schedulerNode);
+        return;
+    }
+
+    // Otherwise use interval-based schedule
     const schedule = flow.schedule || flow.data?.schedule;
     if (!schedule) return;
 
@@ -1343,6 +1572,7 @@ function startScheduledFlow(flow) {
     const scheduleInfo = {
         intervalMs,
         description,
+        type: 'interval',
         startedAt: new Date().toISOString(),
         nextRun: new Date(Date.now() + intervalMs).toISOString()
     };
@@ -1376,6 +1606,269 @@ function startScheduledFlow(flow) {
         status: 'scheduled',
         schedule: scheduleInfo
     });
+}
+
+function startTimeBasedScheduler(flow, schedulerNode) {
+    const times = schedulerNode.data.times || [];
+    if (times.length === 0) return;
+    
+    // Calculate next run time
+    const now = new Date();
+    const todayTimes = times.map(t => {
+        const [h, m] = t.split(':');
+        const d = new Date();
+        d.setHours(parseInt(h), parseInt(m), 0, 0);
+        return { time: t, date: d };
+    }).sort((a, b) => a.date - b.date);
+    
+    // Find next upcoming time
+    let nextRun = todayTimes.find(t => t.date > now);
+    if (!nextRun) {
+        // All times passed today, next is first time tomorrow
+        nextRun = todayTimes[0];
+        nextRun.date.setDate(nextRun.date.getDate() + 1);
+    }
+    
+    const scheduleInfo = {
+        type: 'times',
+        times: times,
+        description: `Daily at ${times.join(', ')}`,
+        startedAt: new Date().toISOString(),
+        nextRun: nextRun.date.toISOString(),
+        nextTime: nextRun.time
+    };
+    
+    // Check every second for time matches
+    const interval = setInterval(() => {
+        const current = new Date();
+        const currentTime = current.toTimeString().slice(0, 5); // "HH:MM"
+        
+        times.forEach((time, index) => {
+            if (time === currentTime) {
+                const key = `${flow.id}_${time}_${current.toDateString()}`;
+                const running = runningFlows.get(flow.id);
+                
+                // Prevent firing multiple times in the same minute
+                if (running && running._lastFiredKey !== key) {
+                    running._lastFiredKey = key;
+                    
+                    addLog(flow.id, flow.name, 'info', `Time trigger: ${time}`);
+                    
+                    // Execute with time index info
+                    executeFlowWithTimeInfo(flow, index, time);
+                    
+                    // Update next run
+                    updateNextScheduledTime(flow.id, times);
+                }
+            }
+        });
+    }, 1000);
+    
+    runningFlows.set(flow.id, {
+        interval,
+        status: 'scheduled',
+        ...scheduleInfo
+    });
+    
+    addLog(flow.id, flow.name, 'info', `Scheduler active: ${times.length} times (${times.join(', ')})`);
+    
+    mainWindow?.webContents.send('flow:statusChange', {
+        flowId: flow.id,
+        status: 'scheduled',
+        schedule: scheduleInfo
+    });
+}
+
+async function executeFlowWithTimeInfo(flow, timeIndex, triggerTime) {
+    const startTime = Date.now();
+    const flowId = flow.id;
+    
+    // Set the triggered port index on scheduler node
+    const schedulerNode = (flow.nodes || []).find(n => n.type === 'scheduler');
+    if (schedulerNode) {
+        schedulerNode.data._triggeredPortIndex = timeIndex;
+    }
+    
+    try {
+        // Execute flow
+        runningFlows.set(flowId, { ...runningFlows.get(flowId), status: 'running' });
+        mainWindow?.webContents.send('flow:statusChange', { flowId, status: 'running' });
+        
+        broadcastSSE('flow_start', { flow_id: flowId, name: flow.name, triggerTime });
+        
+        const nodes = flow.nodes || [];
+        const connections = flow.connections || [];
+        const nodeOutputs = new Map();
+        const executed = new Set();
+        let lastOutput = '';
+        
+        // Find connections from the triggered scheduler port
+        const triggeredPort = 't' + timeIndex;
+        const schedulerConnections = connections.filter(c => 
+            c.from === schedulerNode?.id && 
+            (c.fromPort === triggeredPort || c.fromPort === 'trigger' || c.fromPort === 'output')
+        );
+        
+        async function executeNode(nodeId, fromPort = null) {
+            if (executed.has(nodeId)) return nodeOutputs.get(nodeId);
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) return null;
+            
+            // Skip scheduler node's non-triggered ports
+            if (node.type === 'scheduler' && fromPort && fromPort !== triggeredPort && fromPort !== 'trigger' && fromPort !== 'output') {
+                return null;
+            }
+            
+            const inputs = {};
+            for (const conn of connections.filter(c => c.to === nodeId)) {
+                // For scheduler connections, only get value if it's from the triggered port
+                if (conn.from === schedulerNode?.id) {
+                    const connPort = conn.fromPort || 'output';
+                    if (connPort !== triggeredPort && connPort !== 'trigger' && connPort !== 'output') {
+                        continue; // Skip non-triggered ports
+                    }
+                }
+                
+                const sourceOutput = await executeNode(conn.from, conn.fromPort);
+                if (sourceOutput !== null) {
+                    const fromPortName = conn.fromPort || 'output';
+                    const toPort = conn.toPort || 'input';
+                    
+                    // Get value from specific port, or fallback
+                    let value;
+                    if (sourceOutput[fromPortName] !== undefined) {
+                        value = sourceOutput[fromPortName];
+                    } else if (sourceOutput.output !== undefined) {
+                        value = sourceOutput.output;
+                    } else if (sourceOutput.out !== undefined) {
+                        value = sourceOutput.out;
+                    }
+                    
+                    if (value !== undefined) {
+                        inputs[toPort] = value;
+                    }
+                }
+            }
+            
+            const result = await executeNodeByType(node, inputs, flow);
+            executed.add(nodeId);
+            nodeOutputs.set(nodeId, result);
+            
+            if (result?.output) lastOutput = result.output;
+            return result;
+        }
+        
+        // Start execution from nodes directly connected to triggered scheduler port
+        if (schedulerConnections.length > 0) {
+            // Execute downstream from scheduler
+            for (const conn of schedulerConnections) {
+                await executeNode(conn.to);
+            }
+            
+            // Also execute any end nodes that depend on what we just executed
+            const endNodeIds = nodes
+                .filter(n => !connections.some(c => c.from === n.id))
+                .filter(n => !executed.has(n.id))
+                .map(n => n.id);
+            
+            for (const nodeId of endNodeIds) {
+                // Check if this end node has a path from executed nodes
+                const hasExecutedDependency = connections.some(c => 
+                    c.to === nodeId && executed.has(c.from)
+                );
+                if (hasExecutedDependency || connections.filter(c => c.to === nodeId).length === 0) {
+                    await executeNode(nodeId);
+                }
+            }
+        } else {
+            // No specific port connections, execute from end nodes
+            const endNodeIds = nodes
+                .filter(n => !connections.some(c => c.from === n.id))
+                .map(n => n.id);
+            
+            for (const nodeId of endNodeIds) {
+                await executeNode(nodeId);
+            }
+        }
+        
+        const duration = Date.now() - startTime;
+        
+        // Update run count
+        const flows = store.get('flows') || [];
+        const storedFlow = flows.find(f => f.id === flowId);
+        if (storedFlow) {
+            storedFlow.lastRun = new Date().toISOString();
+            storedFlow.runCount = (storedFlow.runCount || 0) + 1;
+            storedFlow.lastOutput = typeof lastOutput === 'string' ? lastOutput.slice(0, 500) : JSON.stringify(lastOutput).slice(0, 500);
+            store.set('flows', flows);
+        }
+        
+        // Store output for this time slot
+        if (!schedulerOutputs.has(flowId)) {
+            schedulerOutputs.set(flowId, {});
+        }
+        schedulerOutputs.get(flowId)[triggerTime] = {
+            output: typeof lastOutput === 'string' ? lastOutput.slice(0, 2000) : JSON.stringify(lastOutput).slice(0, 2000),
+            timestamp: new Date().toISOString(),
+            duration
+        };
+        
+        addLog(flowId, flow.name, 'info', `Flow completed in ${duration}ms (trigger: ${triggerTime})`);
+        addExecutionHistory(flowId, flow.name, 'success', { 
+            duration, 
+            output: typeof lastOutput === 'string' ? lastOutput.slice(0, 2000) : JSON.stringify(lastOutput).slice(0, 2000),
+            triggerTime
+        });
+        
+        broadcastSSE('flow_complete', { flow_id: flowId, name: flow.name, duration, triggerTime });
+        
+        // Restore scheduled status
+        const running = runningFlows.get(flowId);
+        if (running) {
+            running.status = 'scheduled';
+            mainWindow?.webContents.send('flow:statusChange', { flowId, status: 'scheduled' });
+        }
+        
+    } catch (err) {
+        const duration = Date.now() - startTime;
+        addLog(flowId, flow.name, 'error', `Flow failed: ${err.message}`);
+        addExecutionHistory(flowId, flow.name, 'error', { duration, error: err.message, triggerTime });
+        
+        // Restore scheduled status
+        const running = runningFlows.get(flowId);
+        if (running) {
+            running.status = 'scheduled';
+            mainWindow?.webContents.send('flow:statusChange', { flowId, status: 'scheduled' });
+        }
+    }
+}
+
+function updateNextScheduledTime(flowId, times) {
+    const now = new Date();
+    const todayTimes = times.map(t => {
+        const [h, m] = t.split(':');
+        const d = new Date();
+        d.setHours(parseInt(h), parseInt(m), 0, 0);
+        return { time: t, date: d };
+    }).sort((a, b) => a.date - b.date);
+    
+    let nextRun = todayTimes.find(t => t.date > now);
+    if (!nextRun) {
+        nextRun = { ...todayTimes[0] };
+        nextRun.date = new Date(todayTimes[0].date);
+        nextRun.date.setDate(nextRun.date.getDate() + 1);
+    }
+    
+    const running = runningFlows.get(flowId);
+    if (running) {
+        running.nextRun = nextRun.date.toISOString();
+        running.nextTime = nextRun.time;
+        mainWindow?.webContents.send('flow:scheduleUpdate', {
+            flowId,
+            nextRun: running.nextRun,
+            nextTime: running.nextTime
+        });
+    }
 }
 
 function stopFlow(flowId) {
@@ -1414,7 +1907,11 @@ ipcMain.handle('flows:getAllScheduleInfo', async () => {
         info[flowId] = {
             status: running.status,
             description: running.description,
-            nextRun: running.nextRun
+            type: running.type || 'interval',
+            times: running.times || null,
+            nextRun: running.nextRun,
+            nextTime: running.nextTime || null,
+            timeOutputs: schedulerOutputs.get(flowId) || {}
         };
     }
     return info;
@@ -1470,6 +1967,51 @@ function startLocalServer() {
 
         const url = new URL(req.url, 'http://localhost');
 
+        // GET /events - Server-Sent Events for live updates
+        if (url.pathname === '/events' && req.method === 'GET') {
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Access-Control-Allow-Origin': '*'
+            });
+            
+            // Send initial connected event
+            res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, flows: store.get('flows')?.length || 0 })}\n\n`);
+            
+            // Add to SSE clients
+            sseClients.add(res);
+            
+            // Send flow list with full details
+            const flows = store.get('flows') || [];
+            const flowList = flows.map(f => {
+                const running = runningFlows.get(f.id);
+                return {
+                    id: f.id,
+                    name: f.name,
+                    enabled: f.localEnabled,
+                    schedule: f.schedule,
+                    status: running?.status || (f.localEnabled ? 'IDLE' : 'DISABLED'),
+                    lastRun: f.lastRun,
+                    runCount: f.runCount || 0,
+                    nextRun: running?.nextRun
+                };
+            });
+            res.write(`event: flow_list\ndata: ${JSON.stringify(flowList)}\n\n`);
+            
+            // Keep connection alive
+            const keepAlive = setInterval(() => {
+                res.write(': keepalive\n\n');
+            }, 30000);
+            
+            req.on('close', () => {
+                clearInterval(keepAlive);
+                sseClients.delete(res);
+            });
+            
+            return;
+        }
+
         // GET /status
         if (url.pathname === '/status' && req.method === 'GET') {
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1479,6 +2021,27 @@ function startLocalServer() {
                 active_flows: runningFlows.size,
                 total_flows: (store.get('flows') || []).length
             }));
+            return;
+        }
+        
+        // GET /flows - Get all flows with status
+        if (url.pathname === '/flows' && req.method === 'GET') {
+            const flows = store.get('flows') || [];
+            const flowList = flows.map(f => {
+                const running = runningFlows.get(f.id);
+                return {
+                    id: f.id,
+                    name: f.name,
+                    enabled: f.localEnabled,
+                    schedule: f.schedule,
+                    status: running?.status || (f.localEnabled ? 'IDLE' : 'DISABLED'),
+                    lastRun: f.lastRun,
+                    runCount: f.runCount || 0,
+                    nextRun: running?.nextRun
+                };
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(flowList));
             return;
         }
 
@@ -1499,6 +2062,9 @@ function startLocalServer() {
                     store.set('flows', flows);
                     mainWindow?.webContents.send('flows:updated');
                     addLog(flow.id, flow.name, 'info', 'Flow deployed from browser');
+                    
+                    // Broadcast updated flow list to browser
+                    broadcastFlowList();
                     
                     res.writeHead(200, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ ok: true, flow_id: flow.id }));
@@ -1530,6 +2096,89 @@ function startLocalServer() {
                     res.end(JSON.stringify({ error: e.message }));
                 }
             });
+            return;
+        }
+        
+        // POST /flows/:id/run - Run a flow immediately
+        const runMatch = url.pathname.match(/^\/flows\/([^/]+)\/run$/);
+        if (runMatch && req.method === 'POST') {
+            const flowId = runMatch[1];
+            const flows = store.get('flows') || [];
+            const flow = flows.find(f => f.id === flowId);
+            
+            if (!flow) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Flow not found' }));
+                return;
+            }
+            
+            addLog(flowId, flow.name, 'info', 'Manual run triggered from browser');
+            executeFlow(flow);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
+            return;
+        }
+        
+        // POST /flows/:id/toggle - Enable/disable a flow
+        const toggleMatch = url.pathname.match(/^\/flows\/([^/]+)\/toggle$/);
+        if (toggleMatch && req.method === 'POST') {
+            const flowId = toggleMatch[1];
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', () => {
+                try {
+                    const { enabled } = JSON.parse(body);
+                    const flows = store.get('flows') || [];
+                    const flow = flows.find(f => f.id === flowId);
+                    
+                    if (!flow) {
+                        res.writeHead(404, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Flow not found' }));
+                        return;
+                    }
+                    
+                    flow.localEnabled = enabled;
+                    store.set('flows', flows);
+                    
+                    if (enabled && flow.schedule) {
+                        startScheduledFlow(flow);
+                    } else {
+                        stopFlow(flowId);
+                    }
+                    
+                    addLog(flowId, flow.name, 'info', enabled ? 'Flow enabled via browser' : 'Flow disabled via browser');
+                    mainWindow?.webContents.send('flows:updated');
+                    broadcastFlowList();
+                    
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: true }));
+                } catch (e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
+            return;
+        }
+        
+        // DELETE /flows/:id - Remove a flow
+        const deleteMatch = url.pathname.match(/^\/flows\/([^/]+)$/);
+        if (deleteMatch && req.method === 'DELETE') {
+            const flowId = deleteMatch[1];
+            const flows = store.get('flows') || [];
+            const flow = flows.find(f => f.id === flowId);
+            
+            if (flow) {
+                stopFlow(flowId);
+                const newFlows = flows.filter(f => f.id !== flowId);
+                store.set('flows', newFlows);
+                addLog(flowId, flow.name, 'info', 'Flow removed via browser');
+                mainWindow?.webContents.send('flows:updated');
+                broadcastFlowList();
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: true }));
             return;
         }
 

@@ -13,6 +13,11 @@ contextBridge.exposeInMainWorld('runner', {
     toggleFlow: (flowId, enabled) => ipcRenderer.invoke('flows:toggle', { flowId, enabled }),
     runFlow: (flowId) => ipcRenderer.invoke('flows:runNow', flowId),
     stopFlow: (flowId) => ipcRenderer.invoke('flows:stop', flowId),
+    deleteFlow: (flowId) => ipcRenderer.invoke('flows:delete', flowId),
+    setFlowOutputFolder: (flowId, folder) => ipcRenderer.invoke('flows:setOutputFolder', { flowId, folder }),
+    getFlowOutputFolder: (flowId) => ipcRenderer.invoke('flows:getOutputFolder', flowId),
+    openFlowOutputFolder: (flowId) => ipcRenderer.invoke('flows:openOutputFolder', flowId),
+    setSchedule: (flowId, schedule) => ipcRenderer.invoke('flows:setSchedule', { flowId, schedule }),
     getScheduleInfo: (flowId) => ipcRenderer.invoke('flows:getScheduleInfo', flowId),
     getAllScheduleInfo: () => ipcRenderer.invoke('flows:getAllScheduleInfo'),
 
@@ -38,6 +43,7 @@ contextBridge.exposeInMainWorld('runner', {
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
     openFolder: (path) => ipcRenderer.invoke('shell:openFolder', path),
+    openOutputFolder: () => ipcRenderer.invoke('shell:openOutputFolder'),
 
     // Events
     onFlowStatus: (callback) => ipcRenderer.on('flow:statusChange', (e, data) => callback(data)),
