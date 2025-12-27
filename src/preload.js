@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('runner', {
 
     // Flows
     getFlows: () => ipcRenderer.invoke('flows:getAll'),
+    clearAllFlows: () => ipcRenderer.invoke('flows:clearAll'),
     syncFlows: () => ipcRenderer.invoke('flows:sync'),
     toggleFlow: (flowId, enabled) => ipcRenderer.invoke('flows:toggle', { flowId, enabled }),
     runFlow: (flowId) => ipcRenderer.invoke('flows:runNow', flowId),

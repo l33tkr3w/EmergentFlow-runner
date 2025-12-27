@@ -364,6 +364,16 @@
             color: var(--text-secondary);
         }
 
+        .flows-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
         .text-btn {
             background: none;
             border: none;
@@ -373,6 +383,10 @@
         }
 
         .text-btn:hover { text-decoration: underline; }
+
+        .text-btn.danger {
+            color: var(--error);
+        }
 
         .log-list {
             flex: 1;
@@ -1105,6 +1119,10 @@
         <main class="main">
             <!-- Flows Tab -->
             <div class="tab-content active" id="flowsTab">
+                <div class="flows-header">
+                    <span id="flowCount">0 flows</span>
+                    <button class="text-btn danger" id="clearFlowsBtn">Clear All</button>
+                </div>
                 <div class="flow-list" id="flowList">
                     <div class="empty-state" id="flowsEmpty">
                         <div class="empty-icon">📦</div>
@@ -1381,11 +1399,16 @@
         function renderFlows() {
             const container = document.getElementById('flowList');
             const empty = document.getElementById('flowsEmpty');
+            const countEl = document.getElementById('flowCount');
             
             if (!container) return;
+            
+            // Update flow count
+            if (countEl) countEl.textContent = `${flows.length} flow${flows.length !== 1 ? 's' : ''}`;
 
             if (flows.length === 0) {
                 if (empty) empty.style.display = 'flex';
+                container.innerHTML = '';
                 return;
             }
 
@@ -2164,6 +2187,14 @@
 
             // Clear history
             document.getElementById('clearHistoryBtn')?.addEventListener('click', clearHistory);
+
+            // Clear all flows
+            document.getElementById('clearFlowsBtn')?.addEventListener('click', async () => {
+                if (!confirm('Remove all flows from the runner? This cannot be undone.')) return;
+                await window.runner.clearAllFlows();
+                flows = [];
+                renderFlows();
+            });
 
             // Save settings
             document.getElementById('saveSettingsBtn')?.addEventListener('click', saveSettings);

@@ -432,6 +432,16 @@ ipcMain.handle('flows:getAll', async () => {
     return store.get('flows') || [];
 });
 
+ipcMain.handle('flows:clearAll', async () => {
+    // Stop all running flows first
+    stopAllFlows();
+    // Clear flows from store
+    store.set('flows', []);
+    addLog('system', 'System', 'info', 'All flows cleared');
+    mainWindow?.webContents.send('flows:updated');
+    return { ok: true };
+});
+
 ipcMain.handle('flows:sync', async () => {
     return await syncFlows();
 });
@@ -454,40 +464,50 @@ async function syncFlows() {
         }
 
         const data = await res.json();
-        const flows = data.flows || [];
+        const serverFlows = data.flows || [];
         
-        // Preserve local running state, auto-enable new scheduled flows
+        // Get current local flows
         const currentFlows = store.get('flows') || [];
-        flows.forEach(flow => {
-            const existing = currentFlows.find(f => f.id === flow.id);
-            const hasSchedule = flow.schedule || 
-                (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0) ||
-                (flow.nodes || []).some(n => n.type === 'timer' && n.data?.active);
+        
+        // Merge: update existing, add new from server, keep local-only flows
+        const mergedFlows = [...currentFlows];
+        
+        serverFlows.forEach(serverFlow => {
+            const existingIdx = mergedFlows.findIndex(f => f.id === serverFlow.id);
+            const hasSchedule = serverFlow.schedule || 
+                (serverFlow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0) ||
+                (serverFlow.nodes || []).some(n => n.type === 'timer' && n.data?.active);
             
-            if (existing) {
-                flow.localEnabled = existing.localEnabled;
-                flow.lastRun = existing.lastRun;
-                flow.runCount = existing.runCount || 0;
-                flow.outputFolder = existing.outputFolder;
-                flow.autoSaveOutput = existing.autoSaveOutput;
+            if (existingIdx >= 0) {
+                // Update existing flow but preserve local settings
+                const existing = mergedFlows[existingIdx];
+                mergedFlows[existingIdx] = {
+                    ...serverFlow,
+                    localEnabled: existing.localEnabled,
+                    lastRun: existing.lastRun,
+                    runCount: existing.runCount || 0,
+                    outputFolder: existing.outputFolder,
+                    autoSaveOutput: existing.autoSaveOutput
+                };
             } else {
-                // New flow - auto-enable if scheduled
-                flow.localEnabled = hasSchedule;
+                // New flow from server - auto-enable if scheduled
+                serverFlow.localEnabled = hasSchedule;
+                mergedFlows.push(serverFlow);
             }
         });
 
-        store.set('flows', flows);
+        store.set('flows', mergedFlows);
         
         // Restart scheduled flows (including those with scheduler nodes)
-        flows.forEach(flow => {
+        mergedFlows.forEach(flow => {
             const hasSchedulerNode = (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0);
             if (flow.localEnabled && (flow.schedule || hasSchedulerNode)) {
                 startScheduledFlow(flow);
             }
         });
 
-        addLog('system', 'System', 'info', `Synced ${flows.length} flows`);
-        return { flows };
+        addLog('system', 'System', 'info', `Synced ${serverFlows.length} flows from server, ${mergedFlows.length} total`);
+        return { flows: mergedFlows };
     } catch (err) {
         addLog('system', 'System', 'error', `Sync failed: ${err.message}`);
         return { error: err.message };
