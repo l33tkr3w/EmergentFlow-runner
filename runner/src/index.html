@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+    <title>EmergentFlow Runner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #0f1419;
+            --bg-secondary: #1a1f26;
+            --bg-tertiary: #242b33;
+            --border: #2d3640;
+            --text: #e7e9ea;
+            --text-secondary: #8b98a5;
+            --text-muted: #536471;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --purple: #8b5cf6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 13px;
+            line-height: 1.4;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            -webkit-app-region: drag;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .logo-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        .logo-text {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .logo-text span { color: var(--accent); }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text);
+        }
+
+        /* Auth Banner */
+        .auth-banner {
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+            text-align: center;
+        }
+
+        .auth-banner h3 {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .auth-banner p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 12px;
+        }
+
+        .auth-banner .btn {
+            background: white;
+            color: var(--accent);
+        }
+
+        .auth-banner .btn:hover {
+            background: #f0f0f0;
+        }
+
+        /* Logged in status */
+        .user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+        }
+
+        .user-email {
+            color: var(--text-secondary);
+        }
+
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .logout-btn:hover {
+            color: var(--error);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            padding: 0 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 12px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Flow List */
+        .flow-list {
+            flex: 1;
+            padding: 8px;
+            overflow-y: auto;
+        }
+
+        .flow-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+
+        .flow-card:hover {
+            border-color: var(--accent);
+        }
+
+        .flow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .flow-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .flow-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .flow-status-dot.idle { background: var(--text-muted); }
+        .flow-status-dot.running { 
+            background: var(--success); 
+            box-shadow: 0 0 6px var(--success); 
+            animation: pulse 1.5s infinite; 
+        }
+        .flow-status-dot.scheduled { background: var(--warning); }
+        .flow-status-dot.error { background: var(--error); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .flow-name {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .flow-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .flow-actions button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.15s;
+        }
+
+        .flow-actions button:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .flow-actions button.stop:hover {
+            background: var(--error);
+            border-color: var(--error);
+        }
+
+        .flow-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .flow-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border);
+        }
+
+        .flow-toggle label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .toggle {
+            width: 32px;
+            height: 18px;
+            background: var(--bg-tertiary);
+            border-radius: 18px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.2s;
+        }
+
+        .toggle.on {
+            background: var(--accent);
+        }
+
+        .toggle.on::after {
+            left: 16px;
+            background: white;
+        }
+
+        /* Logs */
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logs-header span {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .text-btn {
+            background: none;
+            border: none;
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .text-btn:hover { text-decoration: underline; }
+
+        .log-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+
+        .log-entry {
+            display: flex;
+            gap: 8px;
+            padding: 4px 8px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+
+        .log-entry:hover {
+            background: var(--bg-secondary);
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .log-flow {
+            color: var(--purple);
+            flex-shrink: 0;
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .log-message {
+            color: var(--text-secondary);
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .log-entry.error .log-message { color: var(--error); }
+        .log-entry.warn .log-message { color: var(--warning); }
+
+        /* Settings */
+        .settings-panel {
+            padding: 16px;
+        }
+
+        .setting-group {
+            margin-bottom: 16px;
+        }
+
+        .setting-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .setting-group input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .setting-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .setting-row span {
+            font-size: 13px;
+        }
+
+        .settings-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+
+        .settings-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 12px;
+        }
+
+        .settings-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .folder-input {
+            display: flex;
+            gap: 8px;
+        }
+
+        .folder-input input {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .folder-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+
+        .folder-btn:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .empty-state p {
+            font-size: 12px;
+            margin-bottom: 16px;
+        }
+
+        /* Footer */
+        .footer {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: 1px solid transparent;
+        }
+
+        .btn.primary {
+            flex: 1;
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn.secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-color: var(--border);
+        }
+
+        .btn.secondary:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* Schedules */
+        .schedules-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 500;
+        }
+
+        .schedule-count {
+            font-size: 12px;
+            color: var(--success);
+            background: rgba(34, 197, 94, 0.1);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        .schedule-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .schedule-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .schedule-card.active {
+            border-color: var(--success);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, var(--bg-secondary) 100%);
+        }
+
+        .schedule-flow-name {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .schedule-flow-name .pulse {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .schedule-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .schedule-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .schedule-info-label {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .schedule-info-value {
+            color: var(--text);
+        }
+
+        .schedule-info-value.next-run {
+            color: var(--warning);
+            font-weight: 500;
+        }
+
+        .schedule-countdown {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .countdown-label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .countdown-value {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .schedule-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .schedule-actions button {
+            flex: 1;
+            padding: 6px 12px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+
+        .schedule-actions button:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .schedule-actions button.stop:hover {
+            background: var(--error);
+            border-color: var(--error);
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-dot"></div>
+                <span class="logo-text">Emergent<span>Flow</span> Runner</span>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Auth Banner (shown when logged out) -->
+        <div class="auth-banner" id="authBanner">
+            <h3>Connect Your Account</h3>
+            <p>Log in to sync and run your flows</p>
+            <button class="btn" id="loginBtn">Login with EmergentFlow</button>
+        </div>
+
+        <!-- User Bar (shown when logged in) -->
+        <div class="user-bar" id="userBar" style="display: none;">
+            <div class="user-info">
+                <div class="user-dot"></div>
+                <span class="user-email" id="userEmail">user@example.com</span>
+            </div>
+            <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="flows">Flows</button>
+            <button class="tab" data-tab="schedules">Schedules</button>
+            <button class="tab" data-tab="logs">Logs</button>
+            <button class="tab" data-tab="settings">Settings</button>
+        </div>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Flows Tab -->
+            <div class="tab-content active" id="flowsTab">
+                <div class="flow-list" id="flowList">
+                    <div class="empty-state" id="flowsEmpty">
+                        <div class="empty-icon">📦</div>
+                        <h3>No flows yet</h3>
+                        <p>Log in and sync to load your flows</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedules Tab -->
+            <div class="tab-content" id="schedulesTab">
+                <div class="schedules-header">
+                    <span>Active Schedules</span>
+                    <span class="schedule-count" id="scheduleCount">0 running</span>
+                </div>
+                <div class="schedule-list" id="scheduleList">
+                    <div class="empty-state" id="schedulesEmpty">
+                        <div class="empty-icon">⏰</div>
+                        <h3>No active schedules</h3>
+                        <p>Enable flows with timers to see them here</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div class="tab-content" id="logsTab">
+                <div class="logs-header">
+                    <span>Activity Log</span>
+                    <button class="text-btn" id="clearLogsBtn">Clear</button>
+                </div>
+                <div class="log-list" id="logList"></div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settingsTab">
+                <div class="settings-panel">
+                    <div class="settings-section">
+                        <h3 class="settings-title">📁 Output</h3>
+                        <div class="setting-group">
+                            <label>Output Folder</label>
+                            <div class="folder-input">
+                                <input type="text" id="outputFolder" readonly placeholder="Select folder...">
+                                <button class="folder-btn" id="selectFolderBtn">Browse</button>
+                                <button class="folder-btn" id="openFolderBtn" title="Open folder">📂</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">🔗 Connections</h3>
+                        <div class="setting-group">
+                            <label>Ollama URL</label>
+                            <input type="text" id="ollamaUrl" placeholder="http://localhost:11434">
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">🔑 API Keys (BYOK)</h3>
+                        <p class="settings-hint">Add your own keys to use with LLM nodes</p>
+                        <div class="setting-group">
+                            <label>OpenAI</label>
+                            <input type="password" id="apiKeyOpenai" placeholder="sk-...">
+                        </div>
+                        <div class="setting-group">
+                            <label>Anthropic</label>
+                            <input type="password" id="apiKeyAnthropic" placeholder="sk-ant-...">
+                        </div>
+                        <div class="setting-group">
+                            <label>Groq</label>
+                            <input type="password" id="apiKeyGroq" placeholder="gsk_...">
+                        </div>
+                        <div class="setting-group">
+                            <label>DeepSeek</label>
+                            <input type="password" id="apiKeyDeepseek" placeholder="sk-...">
+                        </div>
+                        <div class="setting-group">
+                            <label>xAI (Grok)</label>
+                            <input type="password" id="apiKeyGrok" placeholder="xai-...">
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">⚙️ Behavior</h3>
+                        <div class="setting-row">
+                            <span>Start minimized to tray</span>
+                            <div class="toggle" id="startMinimized"></div>
+                        </div>
+                        <div class="setting-row">
+                            <span>Run on system startup</span>
+                            <div class="toggle" id="runOnStartup"></div>
+                        </div>
+                        <div class="setting-row">
+                            <span>Retry failed flows</span>
+                            <div class="toggle" id="retryFailedFlows"></div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section">
+                        <h3 class="settings-title">🔔 Notifications</h3>
+                        <div class="setting-row">
+                            <span>Enable notifications</span>
+                            <div class="toggle on" id="notifications"></div>
+                        </div>
+                        <div class="setting-row">
+                            <span>Notify on flow complete</span>
+                            <div class="toggle on" id="notifyOnComplete"></div>
+                        </div>
+                        <div class="setting-row">
+                            <span>Notify on errors</span>
+                            <div class="toggle on" id="notifyOnError"></div>
+                        </div>
+                    </div>
+
+                    <button class="btn primary" id="saveSettingsBtn" style="width: 100%; margin-top: 16px;">💾 Save Settings</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <button class="btn secondary" id="syncBtn">
+                🔄 Sync
+            </button>
+            <button class="btn primary" id="openDesignerBtn">
+                Open Designer ↗
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        // State
+        let flows = [];
+        let logs = [];
+        let scheduleInfo = {};
+        let isLoggedIn = false;
+        let countdownInterval = null;
+
+        // Init
+        async function init() {
+            await checkAuth();
+            await loadFlows();
+            await loadLogs();
+            await loadSettings();
+            await loadScheduleInfo();
+            setupEventListeners();
+            setupIpcListeners();
+            startCountdownUpdater();
+        }
+
+        // Auth
+        async function checkAuth() {
+            const status = await window.runner.getAuthStatus();
+            isLoggedIn = status.loggedIn;
+            
+            document.getElementById('authBanner').style.display = isLoggedIn ? 'none' : 'block';
+            document.getElementById('userBar').style.display = isLoggedIn ? 'flex' : 'none';
+            
+            if (isLoggedIn) {
+                document.getElementById('userEmail').textContent = status.email;
+            }
+        }
+
+        // Flows
+        async function loadFlows() {
+            flows = await window.runner.getFlows();
+            renderFlows();
+        }
+
+        function renderFlows() {
+            const container = document.getElementById('flowList');
+            const empty = document.getElementById('flowsEmpty');
+
+            if (flows.length === 0) {
+                empty.style.display = 'flex';
+                container.innerHTML = '';
+                container.appendChild(empty);
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = flows.map(flow => {
+                const hasSchedule = flow.schedule || hasTimerNode(flow);
+                const schedInfo = scheduleInfo[flow.id];
+                const isScheduled = schedInfo && flow.localEnabled;
+                
+                return `
+                <div class="flow-card" data-id="${flow.id}">
+                    <div class="flow-header">
+                        <div class="flow-title">
+                            <span class="flow-status-dot ${isScheduled ? 'scheduled' : (flow.localEnabled ? 'idle' : 'idle')}"></span>
+                            <span class="flow-name">${escapeHtml(flow.name)}</span>
+                        </div>
+                        <div class="flow-actions">
+                            <button onclick="runFlow('${flow.id}')">▶ Run</button>
+                        </div>
+                    </div>
+                    <div class="flow-meta">
+                        ${hasSchedule ? `<span>⏰ ${flow.schedule || 'Has timer'}</span>` : '<span>Manual</span>'}
+                        ${flow.lastRun ? `<span>Last: ${formatTime(flow.lastRun)}</span>` : ''}
+                        <span>Runs: ${flow.runCount || 0}</span>
+                    </div>
+                    ${isScheduled ? `
+                    <div class="flow-meta" style="color: var(--success); margin-top: 4px;">
+                        <span>Next run: ${formatNextRun(schedInfo.nextRun)}</span>
+                    </div>
+                    ` : ''}
+                    <div class="flow-toggle">
+                        <div class="toggle ${flow.localEnabled ? 'on' : ''}" onclick="toggleFlow('${flow.id}', ${!flow.localEnabled})"></div>
+                        <label>${flow.localEnabled ? (hasSchedule ? 'Scheduled' : 'Enabled') : 'Disabled'}</label>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // Check if flow has timer/scheduler nodes
+        function hasTimerNode(flow) {
+            const nodes = flow.nodes || [];
+            return nodes.some(n => ['timer', 'scheduler', 'cron'].includes(n.type));
+        }
+
+        // Schedule Info
+        async function loadScheduleInfo() {
+            scheduleInfo = await window.runner.getAllScheduleInfo();
+            renderSchedules();
+        }
+
+        function renderSchedules() {
+            const container = document.getElementById('scheduleList');
+            const empty = document.getElementById('schedulesEmpty');
+            const countEl = document.getElementById('scheduleCount');
+            
+            const activeSchedules = Object.entries(scheduleInfo).filter(([id, info]) => info.status === 'scheduled');
+            
+            countEl.textContent = `${activeSchedules.length} running`;
+            
+            if (activeSchedules.length === 0) {
+                empty.style.display = 'flex';
+                container.innerHTML = '';
+                container.appendChild(empty);
+                return;
+            }
+
+            empty.style.display = 'none';
+            container.innerHTML = activeSchedules.map(([flowId, info]) => {
+                const flow = flows.find(f => f.id === flowId) || { name: 'Unknown Flow' };
+                
+                return `
+                <div class="schedule-card active" data-id="${flowId}">
+                    <div class="schedule-flow-name">
+                        <span class="pulse"></span>
+                        ${escapeHtml(flow.name)}
+                    </div>
+                    <div class="schedule-info">
+                        <div class="schedule-info-item">
+                            <span class="schedule-info-label">Schedule</span>
+                            <span class="schedule-info-value">${escapeHtml(info.description || 'Running')}</span>
+                        </div>
+                        <div class="schedule-info-item">
+                            <span class="schedule-info-label">Next Run</span>
+                            <span class="schedule-info-value next-run" data-next="${info.nextRun}">${formatNextRun(info.nextRun)}</span>
+                        </div>
+                        <div class="schedule-info-item">
+                            <span class="schedule-info-label">Started</span>
+                            <span class="schedule-info-value">${formatTime(info.startedAt)}</span>
+                        </div>
+                        <div class="schedule-info-item">
+                            <span class="schedule-info-label">Total Runs</span>
+                            <span class="schedule-info-value">${flow.runCount || 0}</span>
+                        </div>
+                    </div>
+                    <div class="schedule-countdown">
+                        <span class="countdown-label">Next execution in:</span>
+                        <span class="countdown-value" data-countdown="${info.nextRun}">${formatCountdown(info.nextRun)}</span>
+                    </div>
+                    <div class="schedule-actions">
+                        <button onclick="runFlow('${flowId}')">▶ Run Now</button>
+                        <button class="stop" onclick="toggleFlow('${flowId}', false)">⏹ Stop</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function formatNextRun(iso) {
+            if (!iso) return 'Unknown';
+            const date = new Date(iso);
+            const now = new Date();
+            const diff = date - now;
+            
+            if (diff < 0) return 'Running...';
+            if (diff < 60000) return 'Less than a minute';
+            
+            return date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+        }
+
+        function formatCountdown(iso) {
+            if (!iso) return '--:--';
+            const date = new Date(iso);
+            const now = new Date();
+            const diff = Math.max(0, date - now);
+            
+            if (diff === 0) return 'Now!';
+            
+            const hours = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            
+            if (hours > 0) {
+                return `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            }
+            return `${mins}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function startCountdownUpdater() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                document.querySelectorAll('[data-countdown]').forEach(el => {
+                    el.textContent = formatCountdown(el.dataset.countdown);
+                });
+            }, 1000);
+        }
+
+        async function runFlow(flowId) {
+            await window.runner.runFlow(flowId);
+        }
+
+        async function toggleFlow(flowId, enabled) {
+            await window.runner.toggleFlow(flowId, enabled);
+            await loadFlows();
+            await loadScheduleInfo();
+        }
+
+        // Logs
+        async function loadLogs() {
+            logs = await window.runner.getLogs();
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('logList');
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No logs yet</p></div>';
+                return;
+            }
+
+            container.innerHTML = [...logs].reverse().slice(0, 100).map(log => `
+                <div class="log-entry ${log.level}">
+                    <span class="log-time">${formatLogTime(log.timestamp)}</span>
+                    <span class="log-flow">${escapeHtml(log.flowName)}</span>
+                    <span class="log-message">${escapeHtml(log.message)}</span>
+                </div>
+            `).join('');
+        }
+
+        // Settings
+        async function loadSettings() {
+            const settings = await window.runner.getSettings();
+            const apiKeys = await window.runner.getApiKeys();
+            
+            // Basic settings
+            document.getElementById('outputFolder').value = settings.outputFolder || '';
+            document.getElementById('ollamaUrl').value = settings.ollamaUrl || 'http://localhost:11434';
+            
+            // Toggles
+            document.getElementById('startMinimized').classList.toggle('on', settings.startMinimized);
+            document.getElementById('runOnStartup').classList.toggle('on', settings.runOnStartup);
+            document.getElementById('retryFailedFlows').classList.toggle('on', settings.retryFailedFlows);
+            document.getElementById('notifications').classList.toggle('on', settings.notifications !== false);
+            document.getElementById('notifyOnComplete').classList.toggle('on', settings.notifyOnComplete !== false);
+            document.getElementById('notifyOnError').classList.toggle('on', settings.notifyOnError !== false);
+            
+            // API Keys
+            document.getElementById('apiKeyOpenai').value = apiKeys.openai || '';
+            document.getElementById('apiKeyAnthropic').value = apiKeys.anthropic || '';
+            document.getElementById('apiKeyGroq').value = apiKeys.groq || '';
+            document.getElementById('apiKeyDeepseek').value = apiKeys.deepseek || '';
+            document.getElementById('apiKeyGrok').value = apiKeys.grok || '';
+        }
+
+        async function saveSettings() {
+            const settings = {
+                outputFolder: document.getElementById('outputFolder').value,
+                ollamaUrl: document.getElementById('ollamaUrl').value,
+                startMinimized: document.getElementById('startMinimized').classList.contains('on'),
+                runOnStartup: document.getElementById('runOnStartup').classList.contains('on'),
+                retryFailedFlows: document.getElementById('retryFailedFlows').classList.contains('on'),
+                notifications: document.getElementById('notifications').classList.contains('on'),
+                notifyOnComplete: document.getElementById('notifyOnComplete').classList.contains('on'),
+                notifyOnError: document.getElementById('notifyOnError').classList.contains('on'),
+                maxRetries: 3,
+                retryDelaySeconds: 60
+            };
+            
+            const apiKeys = {
+                openai: document.getElementById('apiKeyOpenai').value,
+                anthropic: document.getElementById('apiKeyAnthropic').value,
+                groq: document.getElementById('apiKeyGroq').value,
+                deepseek: document.getElementById('apiKeyDeepseek').value,
+                grok: document.getElementById('apiKeyGrok').value
+            };
+            
+            await window.runner.saveSettings(settings);
+            await window.runner.saveApiKeys(apiKeys);
+            
+            showToast('Settings saved!');
+        }
+        
+        function showToast(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--success);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 500;
+                z-index: 1000;
+                animation: fadeIn 0.2s;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab + 'Tab').classList.add('active');
+                });
+            });
+
+            // Settings tab button
+            document.getElementById('settingsBtn').addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.querySelector('[data-tab="settings"]').classList.add('active');
+                document.getElementById('settingsTab').classList.add('active');
+            });
+
+            // Auth
+            document.getElementById('loginBtn').addEventListener('click', async () => {
+                await window.runner.login();
+            });
+
+            document.getElementById('logoutBtn').addEventListener('click', async () => {
+                await window.runner.logout();
+                await checkAuth();
+                flows = [];
+                renderFlows();
+            });
+
+            // Sync
+            document.getElementById('syncBtn').addEventListener('click', async () => {
+                const btn = document.getElementById('syncBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="loading"></span> Syncing...';
+                
+                const result = await window.runner.syncFlows();
+                if (result.error) {
+                    alert('Sync failed: ' + result.error);
+                }
+                
+                await loadFlows();
+                await loadScheduleInfo();
+                btn.disabled = false;
+                btn.innerHTML = '🔄 Sync';
+            });
+
+            // Open Designer
+            document.getElementById('openDesignerBtn').addEventListener('click', () => {
+                window.runner.openExternal('https://emergentflow.io/app');
+            });
+
+            // Clear logs
+            document.getElementById('clearLogsBtn').addEventListener('click', async () => {
+                await window.runner.clearLogs();
+                logs = [];
+                renderLogs();
+            });
+
+            // Save settings
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+            // Toggle clicks
+            document.querySelectorAll('.settings-panel .toggle').forEach(toggle => {
+                toggle.addEventListener('click', () => {
+                    toggle.classList.toggle('on');
+                });
+            });
+
+            // Folder picker
+            document.getElementById('selectFolderBtn').addEventListener('click', async () => {
+                const result = await window.runner.selectFolder();
+                if (result.path) {
+                    document.getElementById('outputFolder').value = result.path;
+                }
+            });
+
+            // Open folder
+            document.getElementById('openFolderBtn').addEventListener('click', async () => {
+                const folder = document.getElementById('outputFolder').value;
+                await window.runner.openFolder(folder);
+            });
+        }
+
+        // IPC Listeners
+        function setupIpcListeners() {
+            window.runner.onNewLog((log) => {
+                logs.push(log);
+                renderLogs();
+            });
+
+            window.runner.onFlowStatus(async ({ flowId, status, schedule }) => {
+                const dot = document.querySelector(`.flow-card[data-id="${flowId}"] .flow-status-dot`);
+                if (dot) {
+                    dot.className = 'flow-status-dot ' + status;
+                }
+                
+                // Update schedule info
+                if (schedule) {
+                    scheduleInfo[flowId] = schedule;
+                } else if (status === 'idle') {
+                    delete scheduleInfo[flowId];
+                }
+                renderSchedules();
+                renderFlows();
+            });
+
+            window.runner.onScheduleUpdate(({ flowId, nextRun }) => {
+                if (scheduleInfo[flowId]) {
+                    scheduleInfo[flowId].nextRun = nextRun;
+                    renderSchedules();
+                }
+            });
+
+            window.runner.onFlowsUpdated(async () => {
+                await loadFlows();
+                await loadScheduleInfo();
+            });
+
+            window.runner.onAuthUpdated(async () => {
+                await checkAuth();
+                await loadFlows();
+                await loadScheduleInfo();
+            });
+        }
+
+        // Utilities
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function formatTime(iso) {
+            if (!iso) return '';
+            const date = new Date(iso);
+            const diff = Date.now() - date.getTime();
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+            return date.toLocaleDateString();
+        }
+
+        function formatLogTime(iso) {
+            if (!iso) return '';
+            return new Date(iso).toLocaleTimeString('en-US', { 
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false 
+            });
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>

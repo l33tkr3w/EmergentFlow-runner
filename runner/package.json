@@ -1,0 +1,48 @@
+{
+  "name": "emergentflow-runner",
+  "version": "1.0.0",
+  "description": "EmergentFlow Runner - Run your AI workflows in the background",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "io.emergentflow.runner",
+    "productName": "EmergentFlow Runner",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "src/icons/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "src/icons/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "src/icons"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}
