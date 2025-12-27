@@ -452,7 +452,7 @@ async function executeNodeByType(node, inputs, flow) {
 
             case 'agent':
             case 'report_agent':
-                return await executeLLMNode(node, inputs, { ...settings, isAgent: true });
+                return await executeAgentNode(node, inputs, settings, flow);
 
             // === HTTP/WEBHOOK NODES ===
             case 'http':
@@ -984,6 +984,158 @@ async function executeSearchNode(node, inputs, settings) {
     } catch (e) {
         return { error: e.message };
     }
+}
+
+// Agent node with tool support
+async function executeAgentNode(node, inputs, settings, flow) {
+    const goal = inputs.input || inputs.goal || inputs.prompt || settings.prompt || '';
+    if (!goal) return { output: '', status: 'waiting for goal' };
+    
+    const nodes = flow.nodes || [];
+    const connections = flow.connections || [];
+    
+    // Find tool nodes connected to this agent's 'tools' port
+    const toolConnections = connections.filter(c => c.to === node.id && c.toPort === 'tools');
+    const toolNodes = toolConnections.map(c => nodes.find(n => n.id === c.from)).filter(Boolean);
+    
+    // Build tool descriptions
+    const toolDescriptions = toolNodes.map(toolNode => {
+        const toolName = (toolNode.title || toolNode.name || toolNode.type).replace(/[^a-zA-Z0-9_]/g, '_');
+        let description = '';
+        
+        switch(toolNode.type) {
+            case 'search':
+                description = 'Search the web for information. Input: search query string.';
+                break;
+            case 'web':
+                description = 'Fetch content from a URL. Input: full URL to fetch.';
+                break;
+            case 'http_request':
+            case 'http':
+                description = 'Make an HTTP request. Input: URL or JSON body.';
+                break;
+            case 'llm':
+                description = 'Ask an AI model a question. Input: prompt/question.';
+                break;
+            case 'json':
+                description = 'Parse JSON and extract data. Input: JSON string.';
+                break;
+            case 'template':
+                description = 'Fill a template with values. Input: value for placeholder.';
+                break;
+            case 'string':
+                description = 'String manipulation. Input: text to process.';
+                break;
+            default:
+                description = `Execute ${toolNode.type} node. Input: data to process.`;
+        }
+        
+        if (toolNode.data?.toolDescription) {
+            description = toolNode.data.toolDescription;
+        }
+        
+        return { name: toolName, description, nodeId: toolNode.id, nodeType: toolNode.type };
+    });
+    
+    const maxSteps = settings.maxSteps || 8;
+    const toolList = toolDescriptions.length > 0 
+        ? toolDescriptions.map(t => `- ${t.name}: ${t.description}`).join('\n')
+        : '(No tools available - answer based on your knowledge)';
+    
+    const systemPrompt = `You are an autonomous AI agent that completes tasks step by step.
+
+AVAILABLE TOOLS:
+${toolList}
+
+INSTRUCTIONS:
+1. Think about what you need to do to accomplish the goal
+2. If you need to use a tool, respond with ONLY a JSON object:
+   {"action": "tool_name", "action_input": "your input to the tool"}
+3. Wait for the tool result, then continue reasoning
+4. When you have the final answer, respond with ONLY:
+   {"action": "Final Answer", "action_input": "your complete answer"}
+
+RULES:
+- Use tools when you need external information or computation
+- Always output valid JSON for actions
+- Be concise but thorough in your final answer`;
+
+    const history = [{ role: 'user', content: `Goal: ${goal}` }];
+    const trace = [];
+    
+    addLog(flow.id, flow.name, 'info', `Agent starting: ${goal.slice(0, 100)}`);
+    
+    for (let step = 0; step < maxSteps; step++) {
+        try {
+            const conversationPrompt = history.map(h => 
+                h.role === 'user' ? `User: ${h.content}` : `Assistant: ${h.content}`
+            ).join('\n') + '\nAssistant:';
+            
+            // Call LLM
+            const llmResult = await executeLLMNode(node, { input: conversationPrompt }, {
+                ...settings,
+                systemPrompt: systemPrompt,
+                system: systemPrompt
+            });
+            
+            const response = llmResult.output || '';
+            trace.push(`Step ${step + 1}: ${response.substring(0, 200)}`);
+            history.push({ role: 'assistant', content: response });
+            
+            // Parse JSON action
+            let actionData;
+            try {
+                const cleanResponse = response.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                actionData = JSON.parse(cleanResponse);
+            } catch {
+                history.push({ role: 'user', content: 'Please respond with a valid JSON action.' });
+                continue;
+            }
+            
+            const action = actionData.action;
+            const actionInput = actionData.action_input;
+            
+            // Final answer
+            if (action === 'Final Answer') {
+                addLog(flow.id, flow.name, 'info', `Agent complete after ${step + 1} steps`);
+                return { output: actionInput, result: actionInput, trace: trace.join('\n---\n') };
+            }
+            
+            // Find and execute tool
+            const tool = toolDescriptions.find(t => t.name === action);
+            if (!tool) {
+                history.push({ role: 'user', content: `Tool "${action}" not found. Available: ${toolDescriptions.map(t => t.name).join(', ') || 'none'}` });
+                continue;
+            }
+            
+            addLog(flow.id, flow.name, 'info', `Agent using tool: ${tool.name}`);
+            
+            // Execute the tool node
+            const toolNode = nodes.find(n => n.id === tool.nodeId);
+            if (!toolNode) {
+                history.push({ role: 'user', content: 'Tool node not found.' });
+                continue;
+            }
+            
+            // Prepare inputs for tool
+            const toolInputs = { input: actionInput, query: actionInput, url: actionInput, trigger: true };
+            
+            // Execute the tool node
+            const toolResult = await executeNodeByType(toolNode, toolInputs, flow);
+            const resultStr = typeof toolResult.output === 'string' 
+                ? toolResult.output 
+                : JSON.stringify(toolResult.output || toolResult);
+            
+            history.push({ role: 'user', content: `Tool result:\n${resultStr.slice(0, 2000)}` });
+            
+        } catch (e) {
+            addLog(flow.id, flow.name, 'error', `Agent step ${step + 1} error: ${e.message}`);
+            history.push({ role: 'user', content: `Error: ${e.message}. Please try a different approach.` });
+        }
+    }
+    
+    addLog(flow.id, flow.name, 'warn', 'Agent reached max steps without final answer');
+    return { output: history[history.length - 1]?.content || '', trace: trace.join('\n---\n') };
 }
 
 // Save file to local filesystem
