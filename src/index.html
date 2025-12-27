@@ -802,105 +802,6 @@
             overflow: hidden;
         }
 
-        .schedule-time-display {
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-            margin: 12px 0;
-            padding: 12px;
-            background: var(--bg);
-            border-radius: 8px;
-        }
-
-        .schedule-next-time {
-            font-size: 28px;
-            font-weight: 600;
-            color: var(--accent);
-        }
-
-        .schedule-next-date {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .schedule-card .schedule-actions button.stop {
-            background: transparent;
-            border: 1px solid var(--warning);
-            color: var(--warning);
-        }
-
-        .schedule-times-list {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border);
-        }
-
-        .schedule-time-slot {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            margin-bottom: 8px;
-        }
-
-        .schedule-time-slot.next {
-            border-color: var(--accent);
-            background: rgba(59, 130, 246, 0.1);
-        }
-
-        .schedule-time-slot-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-
-        .schedule-time-slot-time {
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .schedule-time-slot-next {
-            font-size: 9px;
-            background: var(--accent);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .schedule-time-slot-ran {
-            font-size: 10px;
-            color: var(--text-muted);
-            margin-left: auto;
-        }
-
-        .schedule-time-slot-output {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-family: monospace;
-            background: var(--bg-secondary);
-            padding: 6px 8px;
-            border-radius: 4px;
-            max-height: 60px;
-            overflow: hidden;
-        }
-
-        .schedule-time-slot-output .output-preview {
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
-
-        .schedule-time-slot-output .show-more {
-            background: none;
-            border: none;
-            color: var(--accent);
-            font-size: 10px;
-            cursor: pointer;
-            padding: 0;
-            margin-top: 4px;
-        }
-
         /* Schedules */
         .schedules-header {
             display: flex;
@@ -941,7 +842,6 @@
         .schedule-flow-name {
             font-weight: 500;
             font-size: 14px;
-            margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1031,6 +931,120 @@
         .schedule-actions button.stop:hover {
             background: var(--error);
             border-color: var(--error);
+        }
+
+        .schedule-card .schedule-actions button.stop {
+            background: transparent;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .schedule-card .schedule-actions button.danger {
+            background: none;
+            border: none;
+            color: var(--error);
+            flex: 0;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .schedule-status {
+            font-size: 12px;
+        }
+
+        .schedule-status .paused-label {
+            color: var(--warning);
+        }
+
+        .status-dot.paused {
+            width: 8px;
+            height: 8px;
+            background: var(--warning);
+            border-radius: 50%;
+        }
+
+        .schedule-interval {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .schedule-output-preview {
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--text-muted);
+            background: var(--bg);
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            max-height: 40px;
+            overflow: hidden;
+        }
+
+        .schedule-times-list {
+            margin-bottom: 8px;
+        }
+
+        .schedule-time-slot {
+            background: var(--bg);
+            border-left: 3px solid var(--border);
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .schedule-time-slot.next {
+            border-left-color: var(--accent);
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .schedule-time-slot-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .schedule-time-slot-time {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .schedule-time-slot-next {
+            font-size: 9px;
+            background: var(--accent);
+            color: white;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .schedule-time-slot-ran {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .schedule-time-slot-output {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: monospace;
+            margin-top: 4px;
+            max-height: 40px;
+            overflow: hidden;
+        }
+
+        .schedule-time-slot-output .show-more {
+            background: none;
+            border: none;
+            color: var(--accent);
+            font-size: 10px;
+            cursor: pointer;
+            padding: 0;
         }
 
         /* Loading */
@@ -1380,7 +1394,6 @@
                 const hasSchedule = flow.schedule || hasTimerNode(flow) || hasSchedulerNode(flow);
                 const schedInfo = scheduleInfo[flow.id];
                 const isScheduled = schedInfo?.status === 'scheduled';
-                const hasSaveNode = (flow.nodes || []).some(n => ['save', 'file_output', 'write_file'].includes(n.type));
                 const runCount = flow.runCount || 0;
                 const hasCustomFolder = !!flow.outputFolder;
                 
@@ -1406,18 +1419,19 @@
                         <span>🔄 ${runCount}</span>
                         ${flow.lastRun ? `<span>Last: ${formatTime(flow.lastRun)}</span>` : ''}
                     </div>
-                    ${hasSaveNode ? `
-                    <div class="flow-output-folder" style="margin-top:8px; padding:8px; background:var(--bg); border-radius:4px; font-size:11px;">
+                    <div class="flow-settings-row" style="margin-top:8px; padding:8px; background:var(--bg); border-radius:4px; font-size:11px; display:flex; flex-wrap:wrap; gap:8px;">
                         <div style="display:flex; align-items:center; gap:6px; color:var(--text-muted);">
-                            <span>📁 Output:</span>
-                            <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${hasCustomFolder ? 'var(--accent)' : 'var(--text-secondary)'};">
-                                ${hasCustomFolder ? escapeHtml(flow.outputFolder) : '(default)'}
+                            <span>📁</span>
+                            <span style="max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:${hasCustomFolder ? 'var(--accent)' : 'var(--text-secondary)'};">
+                                ${hasCustomFolder ? escapeHtml(flow.outputFolder.split(/[/\\]/).pop()) : 'Default'}
                             </span>
-                            <button onclick="changeFlowFolder('${flow.id}')" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:10px;">Change</button>
-                            ${hasCustomFolder ? `<button onclick="resetFlowFolder('${flow.id}')" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:10px;">Reset</button>` : ''}
+                            <button onclick="changeFlowFolder('${flow.id}')" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:10px;">📂</button>
                         </div>
+                        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-left:auto;">
+                            <input type="checkbox" ${flow.autoSaveOutput ? 'checked' : ''} onchange="toggleAutoSave('${flow.id}', this.checked)">
+                            <span style="color:var(--text-secondary);">💾 Auto-save</span>
+                        </label>
                     </div>
-                    ` : ''}
                     ${flow.lastOutput ? `
                     <div class="flow-last-output" style="margin-top:8px; padding:8px; background:var(--bg); border-radius:4px; font-size:11px; max-height:60px; overflow:hidden; color:var(--text-secondary);">
                         ${escapeHtml(flow.lastOutput.slice(0, 200))}${flow.lastOutput.length > 200 ? '...' : ''}
@@ -1603,6 +1617,12 @@
             renderFlows();
         }
         
+        async function toggleAutoSave(flowId, enabled) {
+            await window.runner.setAutoSave(flowId, enabled);
+            const flow = flows.find(f => f.id === flowId);
+            if (flow) flow.autoSaveOutput = enabled;
+        }
+        
         function openOutputFolder() {
             window.runner.openOutputFolder();
         }
@@ -1750,77 +1770,57 @@
                 const times = hasTimes ? schedulerNode.data.times : [];
                 const timeOutputs = info.timeOutputs || {};
                 
-                const scheduleText = flow.schedule || (hasTimes ? `${times.length} times daily` : 'Timer');
-                const nextRunTime = info.nextRun ? new Date(info.nextRun).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '--';
-                const nextRunDate = info.nextRun ? new Date(info.nextRun).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '';
-                
                 // Build times list with outputs
                 let timesHTML = '';
                 if (hasTimes) {
-                    timesHTML = `
-                    <div class="schedule-times-list">
-                        <div class="schedule-info-label" style="margin-bottom:8px;">Scheduled Times</div>
-                        ${times.map(time => {
-                            const output = timeOutputs[time];
-                            const isNext = info.nextTime === time;
-                            const formattedTime = formatTimeDisplay(time);
-                            return `
-                            <div class="schedule-time-slot ${isNext ? 'next' : ''}" data-time="${time}">
-                                <div class="schedule-time-slot-header">
-                                    <span class="schedule-time-slot-time">${formattedTime}</span>
-                                    ${isNext ? '<span class="schedule-time-slot-next">NEXT</span>' : ''}
-                                    ${output ? `<span class="schedule-time-slot-ran">Last: ${formatTime(output.timestamp)}</span>` : ''}
-                                </div>
-                                ${output ? `
-                                <div class="schedule-time-slot-output">
-                                    <div class="output-preview">${escapeHtml(output.output?.slice(0, 100) || '')}${output.output?.length > 100 ? '...' : ''}</div>
-                                    ${output.output?.length > 100 ? `<button onclick="showFullOutput('${flow.id}', '${time}')" class="show-more">Show more</button>` : ''}
-                                </div>
-                                ` : '<div class="schedule-time-slot-output" style="color:var(--text-muted);">Not run yet</div>'}
+                    timesHTML = times.map(time => {
+                        const output = timeOutputs[time];
+                        const isNext = info.nextTime === time;
+                        const formattedTime = formatTimeDisplay(time);
+                        return `
+                        <div class="schedule-time-slot ${isNext ? 'next' : ''}" data-time="${time}">
+                            <div class="schedule-time-slot-header">
+                                <span class="schedule-time-slot-time">${formattedTime}</span>
+                                ${isNext && isRunning ? '<span class="schedule-time-slot-next">NEXT</span>' : ''}
+                                ${output ? `<span class="schedule-time-slot-ran">${formatTime(output.timestamp)}</span>` : '<span class="schedule-time-slot-ran" style="color:var(--text-muted);">Not run yet</span>'}
                             </div>
-                        `}).join('')}
-                    </div>`;
+                            ${output ? `
+                            <div class="schedule-time-slot-output">
+                                <div class="output-preview">${escapeHtml(output.output?.slice(0, 100) || '')}${output.output?.length > 100 ? '...' : ''}</div>
+                                ${output.output?.length > 100 ? `<button onclick="showFullOutput('${flow.id}', '${time}')" class="show-more">Show more</button>` : ''}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `}).join('');
                 }
+                
+                const nextRunStr = isRunning && info.nextRun 
+                    ? `Next: ${new Date(info.nextRun).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true})}` 
+                    : '';
                 
                 return `
                 <div class="schedule-card ${isRunning ? 'active' : ''}" data-id="${flow.id}">
-                    <div class="schedule-flow-name">
-                        ${isRunning ? '<span class="pulse"></span>' : '<span style="width:8px;height:8px;background:var(--warning);border-radius:50%;"></span>'}
-                        ${escapeHtml(flow.name)}
-                    </div>
-                    <div class="schedule-time-display">
-                        <div class="schedule-next-time">${nextRunTime}</div>
-                        <div class="schedule-next-date">${nextRunDate}</div>
-                    </div>
-                    <div class="schedule-info">
-                        <div class="schedule-info-item">
-                            <span class="schedule-info-label">Type</span>
-                            <span class="schedule-info-value">${escapeHtml(info.description || scheduleText)}</span>
+                    <div class="schedule-header">
+                        <div class="schedule-flow-name">
+                            ${isRunning ? '<span class="pulse"></span>' : '<span class="status-dot paused"></span>'}
+                            ${escapeHtml(flow.name)}
                         </div>
-                        <div class="schedule-info-item">
-                            <span class="schedule-info-label">Countdown</span>
-                            <span class="schedule-info-value countdown-value" data-flow-id="${flow.id}">${isRunning ? formatCountdown(info.nextRun) : 'Paused'}</span>
-                        </div>
-                        <div class="schedule-info-item">
-                            <span class="schedule-info-label">Total Runs</span>
-                            <span class="schedule-info-value">${flow.runCount || 0}</span>
+                        <div class="schedule-status">
+                            ${isRunning ? `<span class="countdown-value" data-flow-id="${flow.id}">${formatCountdown(info.nextRun)}</span>` : '<span class="paused-label">Paused</span>'}
                         </div>
                     </div>
-                    ${timesHTML}
-                    ${!hasTimes && flow.lastOutput ? `
-                    <div class="schedule-output">
-                        <span class="schedule-info-label">Latest Output</span>
-                        <div class="schedule-output-text">${escapeHtml(flow.lastOutput.slice(0, 150))}${flow.lastOutput.length > 150 ? '...' : ''}</div>
-                    </div>
-                    ` : ''}
+                    ${hasTimes ? `<div class="schedule-times-list">${timesHTML}</div>` : `
+                        <div class="schedule-interval">${escapeHtml(info.description || flow.schedule || 'Interval')}</div>
+                        ${flow.lastOutput ? `<div class="schedule-output-preview">${escapeHtml(flow.lastOutput.slice(0, 100))}${flow.lastOutput.length > 100 ? '...' : ''}</div>` : ''}
+                    `}
                     <div class="schedule-actions">
-                        <button onclick="runFlow('${flow.id}')">▶ Run Now</button>
+                        <button onclick="runFlow('${flow.id}')">▶ Run</button>
                         ${isRunning ? 
                             `<button class="stop" onclick="pauseSchedule('${flow.id}')">⏸ Pause</button>` : 
                             `<button onclick="resumeSchedule('${flow.id}')">▶ Resume</button>`
                         }
-                        <button onclick="editSchedule('${flow.id}')" style="margin-left:auto;">✏️ Edit</button>
-                        <button onclick="removeScheduleConfirm('${flow.id}')" style="color:var(--error);">🗑️</button>
+                        <button onclick="editSchedule('${flow.id}')" style="margin-left:auto;">✏️</button>
+                        <button onclick="removeScheduleConfirm('${flow.id}')" class="danger">🗑️</button>
                     </div>
                 </div>
             `}).join('');

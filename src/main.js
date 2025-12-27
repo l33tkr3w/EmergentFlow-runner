@@ -13,6 +13,195 @@ function ensureOutputFolder() {
     return outputFolder;
 }
 
+// Auto-save flow output to timestamped file with proper extension
+function autoSaveFlowOutput(flow, output, triggerTime = null) {
+    try {
+        const baseOutputFolder = store.get('settings.outputFolder') || (app.getPath('documents') + '/EmergentFlow');
+        const safeName = flow.name.replace(/[^a-z0-9]/gi, '_') || 'Untitled';
+        const outputFolder = flow.outputFolder || path.join(baseOutputFolder, safeName);
+        
+        // Ensure folder exists
+        if (!fs.existsSync(outputFolder)) {
+            fs.mkdirSync(outputFolder, { recursive: true });
+        }
+        
+        // Generate timestamped filename
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const triggerSuffix = triggerTime ? `_${triggerTime.replace(':', '')}` : '';
+        
+        // Detect content type and determine extension
+        const { content, extension, isBinary } = detectContentType(output);
+        const filename = `output_${timestamp}${triggerSuffix}.${extension}`;
+        const filePath = path.join(outputFolder, filename);
+        
+        // Write output
+        if (isBinary) {
+            fs.writeFileSync(filePath, content);
+        } else {
+            fs.writeFileSync(filePath, content, 'utf-8');
+        }
+        
+        addLog(flow.id, flow.name, 'info', `Auto-saved: ${filename}`);
+        return filePath;
+    } catch (e) {
+        addLog(flow.id, flow.name, 'error', `Auto-save failed: ${e.message}`);
+        return null;
+    }
+}
+
+// Detect content type and return appropriate format
+function detectContentType(output) {
+    // Handle Buffer or base64 binary data
+    if (Buffer.isBuffer(output)) {
+        const ext = detectBinaryType(output);
+        return { content: output, extension: ext, isBinary: true };
+    }
+    
+    // Handle base64 encoded data
+    if (typeof output === 'string') {
+        // Check for data URL format (data:image/png;base64,...)
+        const dataUrlMatch = output.match(/^data:([^;]+);base64,(.+)$/);
+        if (dataUrlMatch) {
+            const mimeType = dataUrlMatch[1];
+            const base64Data = dataUrlMatch[2];
+            const buffer = Buffer.from(base64Data, 'base64');
+            const ext = mimeToExtension(mimeType);
+            return { content: buffer, extension: ext, isBinary: true };
+        }
+        
+        // Check if it's raw base64 (for images/PDFs)
+        if (isLikelyBase64(output)) {
+            const buffer = Buffer.from(output, 'base64');
+            const ext = detectBinaryType(buffer);
+            if (ext !== 'bin') {
+                return { content: buffer, extension: ext, isBinary: true };
+            }
+        }
+        
+        // Check for HTML
+        if (output.trim().startsWith('<!DOCTYPE') || output.trim().startsWith('<html') || 
+            (output.includes('<head') && output.includes('<body'))) {
+            return { content: output, extension: 'html', isBinary: false };
+        }
+        
+        // Check for SVG
+        if (output.trim().startsWith('<svg') || output.includes('xmlns="http://www.w3.org/2000/svg"')) {
+            return { content: output, extension: 'svg', isBinary: false };
+        }
+        
+        // Check for XML
+        if (output.trim().startsWith('<?xml')) {
+            return { content: output, extension: 'xml', isBinary: false };
+        }
+        
+        // Check for CSV (has commas and newlines, multiple rows)
+        const lines = output.trim().split('\n');
+        if (lines.length > 1 && lines[0].includes(',') && lines.every(l => l.split(',').length === lines[0].split(',').length)) {
+            return { content: output, extension: 'csv', isBinary: false };
+        }
+        
+        // Check for JSON
+        const trimmed = output.trim();
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+            try {
+                JSON.parse(trimmed);
+                return { content: trimmed, extension: 'json', isBinary: false };
+            } catch (e) {
+                // Not valid JSON, fall through
+            }
+        }
+        
+        // Check for Markdown indicators
+        if (output.includes('# ') || output.includes('## ') || output.includes('```') || 
+            output.includes('**') || output.includes('- ')) {
+            return { content: output, extension: 'md', isBinary: false };
+        }
+        
+        // Default to txt
+        return { content: output, extension: 'txt', isBinary: false };
+    }
+    
+    // Handle objects (save as JSON)
+    if (typeof output === 'object') {
+        return { content: JSON.stringify(output, null, 2), extension: 'json', isBinary: false };
+    }
+    
+    // Default
+    return { content: String(output), extension: 'txt', isBinary: false };
+}
+
+// Check if string looks like base64
+function isLikelyBase64(str) {
+    if (str.length < 100) return false;
+    const base64Regex = /^[A-Za-z0-9+/=]+$/;
+    // Check first 1000 chars to avoid processing huge strings
+    return base64Regex.test(str.slice(0, 1000).replace(/\s/g, ''));
+}
+
+// Detect binary file type from magic bytes
+function detectBinaryType(buffer) {
+    if (buffer.length < 4) return 'bin';
+    
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+        return 'png';
+    }
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+        return 'jpg';
+    }
+    // GIF: 47 49 46 38
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+        return 'gif';
+    }
+    // WebP: 52 49 46 46 ... 57 45 42 50
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+        buffer.length > 11 && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+        return 'webp';
+    }
+    // PDF: 25 50 44 46
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+        return 'pdf';
+    }
+    // ZIP/DOCX/XLSX: 50 4B 03 04
+    if (buffer[0] === 0x50 && buffer[1] === 0x4B && buffer[2] === 0x03 && buffer[3] === 0x04) {
+        return 'zip';
+    }
+    // BMP: 42 4D
+    if (buffer[0] === 0x42 && buffer[1] === 0x4D) {
+        return 'bmp';
+    }
+    
+    return 'bin';
+}
+
+// Convert MIME type to file extension
+function mimeToExtension(mimeType) {
+    const mimeMap = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'image/svg+xml': 'svg',
+        'image/bmp': 'bmp',
+        'application/pdf': 'pdf',
+        'application/json': 'json',
+        'text/html': 'html',
+        'text/plain': 'txt',
+        'text/csv': 'csv',
+        'text/xml': 'xml',
+        'application/xml': 'xml',
+        'text/markdown': 'md',
+        'application/zip': 'zip',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    };
+    return mimeMap[mimeType] || 'bin';
+}
+
 // System notification helper
 function showNotification(title, body, flowId = null) {
     const settings = store.get('settings');
@@ -267,14 +456,23 @@ async function syncFlows() {
         const data = await res.json();
         const flows = data.flows || [];
         
-        // Preserve local running state
+        // Preserve local running state, auto-enable new scheduled flows
         const currentFlows = store.get('flows') || [];
         flows.forEach(flow => {
             const existing = currentFlows.find(f => f.id === flow.id);
+            const hasSchedule = flow.schedule || 
+                (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0) ||
+                (flow.nodes || []).some(n => n.type === 'timer' && n.data?.active);
+            
             if (existing) {
                 flow.localEnabled = existing.localEnabled;
                 flow.lastRun = existing.lastRun;
                 flow.runCount = existing.runCount || 0;
+                flow.outputFolder = existing.outputFolder;
+                flow.autoSaveOutput = existing.autoSaveOutput;
+            } else {
+                // New flow - auto-enable if scheduled
+                flow.localEnabled = hasSchedule;
             }
         });
 
@@ -377,6 +575,17 @@ ipcMain.handle('flows:setOutputFolder', async (event, { flowId, folder }) => {
         flow.outputFolder = folder || null; // null means use default
         store.set('flows', flows);
         return { ok: true, folder: flow.outputFolder };
+    }
+    return { error: 'Flow not found' };
+});
+
+ipcMain.handle('flows:setAutoSave', async (event, { flowId, enabled }) => {
+    const flows = store.get('flows') || [];
+    const flow = flows.find(f => f.id === flowId);
+    if (flow) {
+        flow.autoSaveOutput = enabled;
+        store.set('flows', flows);
+        return { ok: true, autoSaveOutput: flow.autoSaveOutput };
     }
     return { error: 'Flow not found' };
 });
@@ -515,6 +724,11 @@ async function executeFlow(flow) {
             storedFlow.runCount = (storedFlow.runCount || 0) + 1;
             storedFlow.lastOutput = typeof lastOutput === 'string' ? lastOutput.slice(0, 500) : JSON.stringify(lastOutput).slice(0, 500);
             store.set('flows', flows);
+            
+            // Auto-save output to file if enabled
+            if (storedFlow.autoSaveOutput && lastOutput) {
+                autoSaveFlowOutput(storedFlow, lastOutput);
+            }
         }
 
         addLog(flowId, flow.name, 'info', `Flow completed in ${duration}ms`);
@@ -1365,27 +1579,55 @@ async function executeSaveNode(node, inputs, settings, flow) {
     
     try {
         let dataToWrite = content;
+        let isBinary = false;
         
-        // Format content based on type
-        if (format === 'json') {
-            dataToWrite = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
-        } else if (format === 'csv') {
-            if (Array.isArray(content)) {
-                // Convert array to CSV
-                if (content.length > 0 && typeof content[0] === 'object') {
-                    const headers = Object.keys(content[0]);
-                    const rows = content.map(row => headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
-                    dataToWrite = [headers.join(','), ...rows].join('\n');
-                } else {
-                    dataToWrite = content.join('\n');
-                }
+        // Check for binary data (Buffer, base64 images/PDFs)
+        if (Buffer.isBuffer(content)) {
+            dataToWrite = content;
+            isBinary = true;
+        } else if (typeof content === 'string') {
+            // Check for data URL format (data:image/png;base64,...)
+            const dataUrlMatch = content.match(/^data:([^;]+);base64,(.+)$/);
+            if (dataUrlMatch) {
+                dataToWrite = Buffer.from(dataUrlMatch[2], 'base64');
+                isBinary = true;
+            } else if (isLikelyBase64(content) && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf', 'bmp'].includes(format)) {
+                // Raw base64 with binary format specified
+                dataToWrite = Buffer.from(content, 'base64');
+                isBinary = true;
             }
         }
         
-        fs.writeFileSync(filePath, dataToWrite, 'utf-8');
+        // Format text content based on type (only if not binary)
+        if (!isBinary) {
+            if (format === 'json') {
+                dataToWrite = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            } else if (format === 'csv') {
+                if (Array.isArray(content)) {
+                    // Convert array to CSV
+                    if (content.length > 0 && typeof content[0] === 'object') {
+                        const headers = Object.keys(content[0]);
+                        const rows = content.map(row => headers.map(h => JSON.stringify(row[h] ?? '')).join(','));
+                        dataToWrite = [headers.join(','), ...rows].join('\n');
+                    } else {
+                        dataToWrite = content.join('\n');
+                    }
+                }
+            } else if (typeof content === 'object') {
+                dataToWrite = JSON.stringify(content, null, 2);
+            }
+        }
+        
+        // Write file
+        if (isBinary) {
+            fs.writeFileSync(filePath, dataToWrite);
+        } else {
+            fs.writeFileSync(filePath, dataToWrite, 'utf-8');
+        }
+        
         addLog(flow.id, flow.name, 'info', `Saved: ${filePath}`);
         
-        return { output: content, filePath, success: true };
+        return { output: isBinary ? `[Binary file saved: ${fullFilename}]` : content, filePath, success: true };
     } catch (e) {
         addLog(flow.id, flow.name, 'error', `Save failed: ${e.message}`);
         return { error: e.message, success: false };
@@ -1801,6 +2043,11 @@ async function executeFlowWithTimeInfo(flow, timeIndex, triggerTime) {
             storedFlow.runCount = (storedFlow.runCount || 0) + 1;
             storedFlow.lastOutput = typeof lastOutput === 'string' ? lastOutput.slice(0, 500) : JSON.stringify(lastOutput).slice(0, 500);
             store.set('flows', flows);
+            
+            // Auto-save output to file if enabled
+            if (storedFlow.autoSaveOutput && lastOutput) {
+                autoSaveFlowOutput(storedFlow, lastOutput, triggerTime);
+            }
         }
         
         // Store output for this time slot
@@ -2054,14 +2301,38 @@ function startLocalServer() {
                     const flow = JSON.parse(body);
                     const flows = store.get('flows') || [];
                     const idx = flows.findIndex(f => f.id === flow.id);
+                    
+                    // Check if flow has schedule
+                    const hasSchedule = flow.schedule || 
+                        (flow.nodes || []).some(n => n.type === 'scheduler' && n.data?.times?.length > 0) ||
+                        (flow.nodes || []).some(n => n.type === 'timer' && n.data?.active);
+                    
                     if (idx >= 0) {
-                        flows[idx] = { ...flows[idx], ...flow };
+                        // Preserve some local settings when updating
+                        const existing = flows[idx];
+                        flows[idx] = { 
+                            ...flow,
+                            localEnabled: existing.localEnabled ?? hasSchedule,
+                            runCount: existing.runCount || 0,
+                            lastRun: existing.lastRun,
+                            outputFolder: existing.outputFolder,
+                            autoSaveOutput: existing.autoSaveOutput
+                        };
                     } else {
+                        // New flow - auto-enable if it has a schedule
+                        flow.localEnabled = hasSchedule;
                         flows.push(flow);
                     }
                     store.set('flows', flows);
                     mainWindow?.webContents.send('flows:updated');
                     addLog(flow.id, flow.name, 'info', 'Flow deployed from browser');
+                    
+                    // Auto-start if it has a schedule
+                    const savedFlow = flows.find(f => f.id === flow.id);
+                    if (savedFlow && savedFlow.localEnabled && hasSchedule) {
+                        startScheduledFlow(savedFlow);
+                        addLog(flow.id, flow.name, 'info', 'Schedule started automatically');
+                    }
                     
                     // Broadcast updated flow list to browser
                     broadcastFlowList();

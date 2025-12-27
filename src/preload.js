@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('runner', {
     setFlowOutputFolder: (flowId, folder) => ipcRenderer.invoke('flows:setOutputFolder', { flowId, folder }),
     getFlowOutputFolder: (flowId) => ipcRenderer.invoke('flows:getOutputFolder', flowId),
     openFlowOutputFolder: (flowId) => ipcRenderer.invoke('flows:openOutputFolder', flowId),
+    setAutoSave: (flowId, enabled) => ipcRenderer.invoke('flows:setAutoSave', { flowId, enabled }),
     setSchedule: (flowId, schedule) => ipcRenderer.invoke('flows:setSchedule', { flowId, schedule }),
     getScheduleInfo: (flowId) => ipcRenderer.invoke('flows:getScheduleInfo', flowId),
     getAllScheduleInfo: () => ipcRenderer.invoke('flows:getAllScheduleInfo'),
