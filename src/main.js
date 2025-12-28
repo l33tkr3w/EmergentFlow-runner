@@ -262,6 +262,9 @@ const store = new Store({
             // Ollama
             ollamaUrl: 'http://localhost:11434',
             
+            // Default LLM provider (when nodes use 'default')
+            defaultProvider: 'ollama',
+            
             // Startup
             startMinimized: false,
             runOnStartup: false,
@@ -1007,8 +1010,15 @@ async function executeNodeByType(node, inputs, flow) {
 }
 
 async function executeLLMNode(node, inputs, settings, flow = {}) {
-    // Just read the values directly
-    const provider = settings.provider || node.data?.provider || 'google';
+    // Get provider - handle 'default' case
+    let provider = settings.provider || node.data?.provider || 'google';
+    
+    // If provider is 'default', use Runner's default provider setting
+    if (provider === 'default') {
+        provider = flow.defaultProvider || store.get('settings.defaultProvider') || 'ollama';
+        console.log(`[LLM] Provider was 'default', resolved to: ${provider}`);
+    }
+    
     const model = settings.model || node.data?.model || 'gemini-2.0-flash';
     const systemPrompt = settings.systemPrompt || settings.system || '';
     
