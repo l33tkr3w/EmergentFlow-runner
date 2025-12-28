@@ -290,7 +290,8 @@ const store = new Store({
             google: '',
             groq: '',
             deepseek: '',
-            grok: ''
+            grok: '',
+            brave: ''  // Brave Search API for direct web search
         },
         // Execution history
         executionHistory: []
@@ -1669,12 +1670,44 @@ async function executeEmailNode(node, inputs, settings) {
 
 async function executeSearchNode(node, inputs, settings) {
     const query = inputs.input || inputs.query || settings.query || '';
-    const token = store.get('authToken');
-    
-    if (!token) return { error: 'Not authenticated' };
     if (!query) return { error: 'No search query provided' };
     
+    // Check for user's own Brave Search API key first (direct, no server)
+    const storedKeys = store.get('apiKeys') || {};
+    const braveKey = storedKeys.brave || '';
+    
+    if (braveKey) {
+        // Direct Brave Search API call - no server proxy!
+        try {
+            addLog('system', 'Search', 'info', '[DIRECT] Brave Search');
+            const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Subscription-Token': braveKey
+                }
+            });
+            const data = await res.json();
+            
+            if (data.web?.results) {
+                const results = data.web.results.map(r => 
+                    `Title: ${r.title}\nURL: ${r.url}\nSnippet: ${r.description}\n`
+                ).join('\n');
+                return { output: results, raw: data.web.results };
+            }
+            return { output: 'No results found', raw: [] };
+        } catch (e) {
+            addLog('system', 'Search', 'error', `Brave Search failed: ${e.message}`);
+            // Fall through to server search
+        }
+    }
+    
+    // Fallback: Use server-side DuckDuckGo
+    const token = store.get('authToken');
+    if (!token) return { error: 'Not authenticated and no Brave API key configured' };
+    
     try {
+        addLog('system', 'Search', 'info', `Searching: "${query}" via server`);
+        
         const res = await fetch(`${API_URL}/browser/search`, {
             method: 'POST',
             headers: {
@@ -1683,14 +1716,28 @@ async function executeSearchNode(node, inputs, settings) {
             },
             body: JSON.stringify({ query, max_results: 5 })
         });
-        const data = await res.json();
+        
+        // Log response details for debugging
+        addLog('system', 'Search', 'info', `Response status: ${res.status}`);
+        
+        const text = await res.text();
+        addLog('system', 'Search', 'info', `Response (first 200 chars): ${text.slice(0, 200)}`);
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            return { output: `Search failed: Invalid JSON response - ${text.slice(0, 100)}`, error: 'Invalid JSON' };
+        }
         
         if (data.error) {
+            addLog('system', 'Search', 'error', `Server error: ${data.error}`);
             return { output: `Search error: ${data.error}`, error: data.error };
         }
         
         return { output: data.result || JSON.stringify(data.raw) || data };
     } catch (e) {
+        addLog('system', 'Search', 'error', `Search request failed: ${e.message}`);
         return { output: `Search failed: ${e.message}`, error: e.message };
     }
 }
