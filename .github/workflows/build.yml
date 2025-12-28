@@ -10,43 +10,72 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS
+          - os: ubuntu-latest
+            name: Linux
+
     runs-on: ${{ matrix.os }}
-    
+
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
+          cache: 'npm'
+
       - name: Install dependencies
-        run: npm install
-        
-      - name: Build
+        run: npm ci
+
+      - name: Build Electron app
         run: npm run build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Upload artifacts
+
+      - name: Upload Windows artifact
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: dist-${{ matrix.os }}
-          path: dist/*
+          name: EmergentFlow-Runner-Windows
+          path: dist/*.exe
+
+      - name: Upload macOS artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EmergentFlow-Runner-macOS
+          path: dist/*.dmg
+
+      - name: Upload Linux artifact
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EmergentFlow-Runner-Linux
+          path: dist/*.AppImage
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
     steps:
-      - uses: actions/download-artifact@v4
-      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist-windows-latest/*
-            dist-macos-latest/*
-            dist-ubuntu-latest/*
+            EmergentFlow-Runner-Windows/*.exe
+            EmergentFlow-Runner-macOS/*.dmg
+            EmergentFlow-Runner-Linux/*.AppImage
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
