@@ -1672,20 +1672,26 @@ async function executeSearchNode(node, inputs, settings) {
     const token = store.get('authToken');
     
     if (!token) return { error: 'Not authenticated' };
+    if (!query) return { error: 'No search query provided' };
     
     try {
-        const res = await fetch(`${API_URL}/api/search`, {
+        const res = await fetch(`${API_URL}/browser/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ query })
+            body: JSON.stringify({ query, max_results: 5 })
         });
         const data = await res.json();
-        return { output: data.results || data };
+        
+        if (data.error) {
+            return { output: `Search error: ${data.error}`, error: data.error };
+        }
+        
+        return { output: data.result || JSON.stringify(data.raw) || data };
     } catch (e) {
-        return { error: e.message };
+        return { output: `Search failed: ${e.message}`, error: e.message };
     }
 }
 
