@@ -1012,23 +1012,32 @@ async function executeNodeByType(node, inputs, flow) {
 }
 
 async function executeLLMNode(node, inputs, settings, flow = {}) {
-    // Use exact configuration from flow - no fallbacks or switching
+    // Use exact configuration from flow - flow.config is the source of truth
     const flowConfig = flow.config || {};
     
-    // Get provider from node, or flow's default config
-    let provider = settings.provider || node.data?.provider || '';
-    if (!provider || provider === 'default') {
-        provider = flowConfig.provider || 'ollama';
+    // DEBUG: Log what we received
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `flow.config: ${JSON.stringify(flowConfig)}`);
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `node.data.provider: ${node.data?.provider}, node.data.model: ${node.data?.model}`);
+    
+    // Flow config provider takes ABSOLUTE precedence
+    let provider = flowConfig.provider || 'ollama';
+    
+    // Only use node settings if flowConfig doesn't specify
+    if (!flowConfig.provider) {
+        provider = settings.provider || node.data?.provider || 'ollama';
     }
     
-    // Get model from node, or flow's default config  
+    // Get model - node's model takes precedence, then flow default
     const model = settings.model || node.data?.model || flowConfig.model || '';
     const systemPrompt = settings.systemPrompt || settings.system || '';
+    
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Resolved: provider=${provider}, model=${model}`);
     
     // If Ollama, route directly to local - use URL from flow config
     if (provider === 'ollama') {
         const ollamaUrl = flowConfig.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
-        return await executeOllamaNode(node, inputs, { ...settings, model, ollamaUrl });
+        addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Routing to Ollama at ${ollamaUrl}`);
+        return await executeOllamaNode(node, inputs, { ...settings, model, systemPrompt, ollamaUrl });
     }
     
     // For cloud providers, get API key
@@ -1052,14 +1061,9 @@ async function executeLLMNode(node, inputs, settings, flow = {}) {
         return { output: 'Error: No prompt provided' };
     }
     
-    // If ollama, use local
-    if (provider === 'ollama') {
-        return await executeOllamaNode(node, inputs, settings);
-    }
-    
     const token = store.get('authToken');
     
-    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Calling ${provider} / ${model}`);
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Calling server API: ${provider} / ${model}`);
     
     try {
         const res = await fetch(`${API_URL}/api/generate`, {
@@ -1094,13 +1098,18 @@ async function executeLLMNode(node, inputs, settings, flow = {}) {
 async function executeOllamaNode(node, inputs, settings) {
     // Use URL from settings (passed from flow config) or fall back to stored setting
     const ollamaUrl = settings.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
-    const model = settings.model || 'llama2';
-    const systemPrompt = settings.systemPrompt || '';
+    const model = settings.model || node.data?.model || 'llama2';
+    const systemPrompt = settings.systemPrompt || node.data?.systemPrompt || '';
     
-    let prompt = settings.prompt || '';
+    let prompt = settings.prompt || node.data?.prompt || '';
     for (const [key, value] of Object.entries(inputs)) {
-        prompt = prompt.replace(`{{${key}}}`, value);
-        if (!prompt && value) prompt = value;
+        if (typeof value === 'string') {
+            prompt = prompt.replace(`{{${key}}}`, value);
+        }
+        if (!prompt && value) prompt = String(value);
+    }
+    if (!prompt) {
+        prompt = inputs.input || inputs.in || inputs.prompt || '';
     }
 
     try {
@@ -1108,7 +1117,7 @@ async function executeOllamaNode(node, inputs, settings) {
         if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
         messages.push({ role: 'user', content: prompt });
         
-        console.log(`[Ollama] Calling ${ollamaUrl} with model ${model}`);
+        console.log(`[Ollama] POST ${ollamaUrl}/api/chat model=${model} stream=false`);
 
         const res = await fetch(`${ollamaUrl}/api/chat`, {
             method: 'POST',
@@ -1120,9 +1129,15 @@ async function executeOllamaNode(node, inputs, settings) {
             })
         });
 
+        if (!res.ok) {
+            const text = await res.text();
+            return { output: `Ollama Error: HTTP ${res.status} - ${text}` };
+        }
+
         const data = await res.json();
         return { output: data.message?.content || '' };
     } catch (err) {
+        console.error('[Ollama] Error:', err);
         return { output: `Ollama Error: ${err.message}` };
     }
 }
