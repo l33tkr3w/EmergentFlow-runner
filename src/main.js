@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 const fetch = require('node-fetch');
+const database = require('./database');
 
 // Ensure output folder exists
 function ensureOutputFolder() {
@@ -2490,6 +2491,7 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
     startLocalServer();
+    database.registerDatabaseIPC();
 
     // Auto-sync on startup if logged in
     if (store.get('authToken')) {
@@ -2501,9 +2503,10 @@ app.on('window-all-closed', () => {
     // Don't quit on window close - keep running in tray
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
     isQuitting = true;
     stopAllFlows();
+    await database.cleanup();
 });
 
 app.on('activate', () => {

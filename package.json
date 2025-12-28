@@ -1,14 +1,15 @@
 {
   "name": "emergentflow-runner",
-  "version": "1.0.0",
-  "description": "EmergentFlow Runner - Run your AI workflows in the background",
+  "version": "1.1.0",
+  "description": "EmergentFlow Runner - Run your AI workflows in the background with database support",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux"
+    "build:linux": "electron-builder --linux",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "io.emergentflow.runner",
@@ -39,10 +40,16 @@
   },
   "dependencies": {
     "electron-store": "^8.1.0",
-    "node-fetch": "^2.7.0"
+    "node-fetch": "^2.7.0",
+    "pg": "^8.11.3",
+    "mysql2": "^3.9.1",
+    "better-sqlite3": "^9.4.3",
+    "mongodb": "^6.3.0",
+    "redis": "^4.6.13"
   },
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "electron-rebuild": "^3.2.9"
   }
 }

@@ -56,3 +56,27 @@ contextBridge.exposeInMainWorld('runner', {
     onHistoryUpdated: (callback) => ipcRenderer.on('history:updated', () => callback()),
     onFlowFocus: (callback) => ipcRenderer.on('flow:focus', (e, data) => callback(data))
 });
+
+// Database APIs - exposed as electronAPI for web app compatibility
+contextBridge.exposeInMainWorld('electronAPI', {
+    // PostgreSQL
+    executePostgres: (config) => ipcRenderer.invoke('db:postgres', config),
+    
+    // MySQL
+    executeMysql: (config) => ipcRenderer.invoke('db:mysql', config),
+    
+    // SQLite
+    executeSqlite: (config) => ipcRenderer.invoke('db:sqlite', config),
+    
+    // MongoDB
+    executeMongodb: (config) => ipcRenderer.invoke('db:mongodb', config),
+    
+    // Redis
+    executeRedis: (config) => ipcRenderer.invoke('db:redis', config),
+    
+    // Test connection
+    testDatabaseConnection: (type, config) => ipcRenderer.invoke('db:test', { type, config }),
+    
+    // Close all database connections
+    closeDatabaseConnections: () => ipcRenderer.invoke('db:closeAll')
+});
