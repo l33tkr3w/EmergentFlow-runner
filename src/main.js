@@ -2615,10 +2615,11 @@ function startLocalServer() {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 ok: true,
-                version: '1.2.0',
+                version: '1.3.0',
                 active_flows: runningFlows.size,
                 total_flows: (store.get('flows') || []).length,
-                privacy: 'direct-api-calls'
+                privacy: 'direct-api-calls',
+                features: ['direct-llm', 'api-proxy']  // api-proxy means browser can route through us
             }));
             return;
         }
@@ -2641,6 +2642,104 @@ function startLocalServer() {
             });
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(flowList));
+            return;
+        }
+
+        // POST /api/generate - Direct LLM calls from browser (Pro feature)
+        // This lets Pro users route browser LLM calls through Runner for true privacy
+        if (url.pathname === '/api/generate' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', async () => {
+                try {
+                    const { provider, model, prompt, system, apiKey, images } = JSON.parse(body);
+                    
+                    if (!prompt) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'No prompt provided' }));
+                        return;
+                    }
+                    
+                    // Get API key - use provided key or fall back to stored key
+                    const storedKeys = store.get('apiKeys') || {};
+                    const keyMap = { 
+                        'xai': 'grok', 'grok': 'grok',
+                        'anthropic': 'anthropic', 'claude': 'anthropic',
+                        'openai': 'openai', 
+                        'groq': 'groq', 
+                        'deepseek': 'deepseek', 
+                        'google': 'google', 'gemini': 'google'
+                    };
+                    const resolvedProvider = provider || 'openai';
+                    const key = apiKey || storedKeys[keyMap[resolvedProvider]] || storedKeys[resolvedProvider] || '';
+                    
+                    if (!key && resolvedProvider !== 'ollama') {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: `No API key for ${resolvedProvider}` }));
+                        return;
+                    }
+                    
+                    const imageArray = images || [];
+                    let result;
+                    
+                    console.log(`[Runner API] Direct ${resolvedProvider} call`);
+                    
+                    switch (resolvedProvider) {
+                        case 'ollama':
+                            const ollamaUrl = store.get('settings.ollamaUrl') || 'http://localhost:11434';
+                            const messages = [];
+                            if (system) messages.push({ role: 'system', content: system });
+                            messages.push({ role: 'user', content: prompt });
+                            const ollamaRes = await fetch(`${ollamaUrl.replace(/\/+$/, '')}/api/chat`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ model: model || 'llama2', messages, stream: false })
+                            });
+                            const ollamaData = await ollamaRes.json();
+                            result = { response: ollamaData.message?.content || '' };
+                            break;
+                        case 'openai':
+                            result = await callOpenAIDirect(key, model, prompt, system, imageArray);
+                            result = { response: result.output };
+                            break;
+                        case 'anthropic':
+                        case 'claude':
+                            result = await callAnthropicDirect(key, model, prompt, system, imageArray);
+                            result = { response: result.output };
+                            break;
+                        case 'google':
+                        case 'gemini':
+                            result = await callGoogleDirect(key, model, prompt, system, imageArray);
+                            result = { response: result.output };
+                            break;
+                        case 'groq':
+                            result = await callGroqDirect(key, model, prompt, system, imageArray);
+                            result = { response: result.output };
+                            break;
+                        case 'deepseek':
+                            result = await callDeepSeekDirect(key, model, prompt, system);
+                            result = { response: result.output };
+                            break;
+                        case 'xai':
+                        case 'grok':
+                            result = await callXAIDirect(key, model, prompt, system, imageArray);
+                            result = { response: result.output };
+                            break;
+                        default:
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ error: `Unknown provider: ${resolvedProvider}` }));
+                            return;
+                    }
+                    
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(result));
+                    
+                } catch (e) {
+                    console.error('[Runner API] Error:', e);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: e.message }));
+                }
+            });
             return;
         }
 
