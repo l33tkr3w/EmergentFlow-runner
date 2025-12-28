@@ -287,6 +287,7 @@ const store = new Store({
         apiKeys: {
             openai: '',
             anthropic: '',
+            google: '',
             groq: '',
             deepseek: '',
             grok: ''
@@ -1011,42 +1012,246 @@ async function executeNodeByType(node, inputs, flow) {
     }
 }
 
+// ============================================
+// DIRECT LLM API CALLS (v1.2.0)
+// All calls go DIRECTLY to providers - no server proxy!
+// This enables true "data never touches our servers" privacy
+// ============================================
+
+async function callOpenAIDirect(apiKey, model, prompt, system = '', images = []) {
+    const messages = [];
+    if (system) messages.push({ role: 'system', content: system });
+    
+    // Handle vision models
+    if (images.length > 0) {
+        const content = [{ type: 'text', text: prompt }];
+        for (const img of images) {
+            content.push({
+                type: 'image_url',
+                image_url: { url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}` }
+            });
+        }
+        messages.push({ role: 'user', content });
+    } else {
+        messages.push({ role: 'user', content: prompt });
+    }
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model || 'gpt-4o-mini',
+            messages,
+            max_tokens: 4096
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.choices[0].message.content };
+}
+
+async function callAnthropicDirect(apiKey, model, prompt, system = '', images = []) {
+    const content = [];
+    
+    // Add images first if present
+    for (const img of images) {
+        const base64 = img.startsWith('data:') ? img.split(',')[1] : img;
+        content.push({
+            type: 'image',
+            source: {
+                type: 'base64',
+                media_type: 'image/jpeg',
+                data: base64
+            }
+        });
+    }
+    
+    content.push({ type: 'text', text: prompt });
+    
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model || 'claude-sonnet-4-20250514',
+            max_tokens: 4096,
+            system: system || undefined,
+            messages: [{ role: 'user', content }]
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.content[0].text };
+}
+
+async function callGoogleDirect(apiKey, model, prompt, system = '', images = []) {
+    const modelName = model || 'gemini-2.0-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    
+    const parts = [];
+    
+    // Add images if present
+    for (const img of images) {
+        const base64 = img.startsWith('data:') ? img.split(',')[1] : img;
+        parts.push({
+            inline_data: {
+                mime_type: 'image/jpeg',
+                data: base64
+            }
+        });
+    }
+    
+    parts.push({ text: prompt });
+    
+    const body = {
+        contents: [{ parts }],
+        generationConfig: {
+            maxOutputTokens: 8192
+        }
+    };
+    
+    if (system) {
+        body.systemInstruction = { parts: [{ text: system }] };
+    }
+    
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.candidates[0].content.parts[0].text };
+}
+
+async function callGroqDirect(apiKey, model, prompt, system = '', images = []) {
+    const messages = [];
+    if (system) messages.push({ role: 'system', content: system });
+    
+    // Groq vision support
+    if (images.length > 0) {
+        const content = [{ type: 'text', text: prompt }];
+        for (const img of images) {
+            content.push({
+                type: 'image_url',
+                image_url: { url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}` }
+            });
+        }
+        messages.push({ role: 'user', content });
+    } else {
+        messages.push({ role: 'user', content: prompt });
+    }
+    
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model || 'llama-3.3-70b-versatile',
+            messages,
+            max_tokens: 4096
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.choices[0].message.content };
+}
+
+async function callDeepSeekDirect(apiKey, model, prompt, system = '') {
+    const messages = [];
+    if (system) messages.push({ role: 'system', content: system });
+    messages.push({ role: 'user', content: prompt });
+    
+    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model || 'deepseek-chat',
+            messages,
+            max_tokens: 4096
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.choices[0].message.content };
+}
+
+async function callXAIDirect(apiKey, model, prompt, system = '', images = []) {
+    const messages = [];
+    if (system) messages.push({ role: 'system', content: system });
+    
+    // xAI/Grok vision support
+    if (images.length > 0) {
+        const content = [{ type: 'text', text: prompt }];
+        for (const img of images) {
+            content.push({
+                type: 'image_url',
+                image_url: { url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}` }
+            });
+        }
+        messages.push({ role: 'user', content });
+    } else {
+        messages.push({ role: 'user', content: prompt });
+    }
+    
+    const response = await fetch('https://api.x.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            model: model || 'grok-2-latest',
+            messages,
+            max_tokens: 4096
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    return { output: data.choices[0].message.content };
+}
+
+// ============================================
+// MAIN LLM NODE EXECUTOR - ALL DIRECT CALLS
+// ============================================
+
 async function executeLLMNode(node, inputs, settings, flow = {}) {
-    // Use exact configuration from flow - flow.config is the source of truth
     const flowConfig = flow.config || {};
     
-    // DEBUG: Log what we received
-    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `flow.config: ${JSON.stringify(flowConfig)}`);
-    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `node.data.provider: ${node.data?.provider}, node.data.model: ${node.data?.model}`);
-    
-    // Flow config provider takes ABSOLUTE precedence
-    let provider = flowConfig.provider || 'ollama';
-    
-    // Only use node settings if flowConfig doesn't specify
-    if (!flowConfig.provider) {
-        provider = settings.provider || node.data?.provider || 'ollama';
+    // Get provider - flow config takes precedence
+    let provider = flowConfig.provider || settings.provider || node.data?.provider || 'ollama';
+    if (provider === 'default') {
+        provider = store.get('settings.defaultProvider') || 'ollama';
     }
     
-    // Get model - node's model takes precedence, then flow default
+    // Normalize provider names
+    if (provider === 'gemini') provider = 'google';
+    if (provider === 'grok') provider = 'xai';
+    if (provider === 'claude') provider = 'anthropic';
+    
+    // Get model
     const model = settings.model || node.data?.model || flowConfig.model || '';
-    const systemPrompt = settings.systemPrompt || settings.system || '';
+    const systemPrompt = settings.systemPrompt || settings.system || node.data?.systemPrompt || '';
     
-    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Resolved: provider=${provider}, model=${model}`);
-    
-    // If Ollama, route directly to local - use URL from flow config
-    if (provider === 'ollama') {
-        const ollamaUrl = flowConfig.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
-        addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Routing to Ollama at ${ollamaUrl}`);
-        return await executeOllamaNode(node, inputs, { ...settings, model, systemPrompt, ollamaUrl });
-    }
-    
-    // For cloud providers, get API key
-    const storedKeys = store.get('apiKeys') || {};
-    const keyMap = { 'xai': 'grok', 'anthropic': 'anthropic', 'openai': 'openai', 'groq': 'groq', 'deepseek': 'deepseek', 'google': 'google', 'gemini': 'google' };
-    const apiKey = storedKeys[keyMap[provider]] || storedKeys[provider] || '';
-    
-    // Build prompt
-    let prompt = settings.prompt || '';
+    // Build prompt from inputs
+    let prompt = settings.prompt || node.data?.prompt || '';
     for (const [key, value] of Object.entries(inputs)) {
         if (typeof value === 'string') {
             prompt = prompt.replace(new RegExp(`{{\\s*${key}\\s*}}`, 'g'), value);
@@ -1061,37 +1266,68 @@ async function executeLLMNode(node, inputs, settings, flow = {}) {
         return { output: 'Error: No prompt provided' };
     }
     
-    const token = store.get('authToken');
+    // Get images if any
+    const images = [];
+    if (inputs.images) {
+        images.push(...(Array.isArray(inputs.images) ? inputs.images : [inputs.images]));
+    }
+    if (inputs.image) {
+        images.push(inputs.image);
+    }
     
-    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `Calling server API: ${provider} / ${model}`);
+    addLog(flow?.id || 'system', flow?.name || 'LLM', 'info', `[DIRECT] ${provider} / ${model}`);
     
     try {
-        const res = await fetch(`${API_URL}/api/generate`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                provider,
-                apiKey,
-                model,
-                prompt,
-                system: systemPrompt
-            })
-        });
-
-        const data = await res.json();
-        
-        if (data.error) {
-            addLog(flow?.id || 'system', flow?.name || 'LLM', 'error', data.error || data.response);
-            return { output: `Error: ${data.error || data.response}` };
+        // === OLLAMA - Direct to local server ===
+        if (provider === 'ollama') {
+            const ollamaUrl = flowConfig.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
+            return await executeOllamaNode(node, inputs, { ...settings, model, systemPrompt, ollamaUrl });
         }
         
-        return { output: data.response || '' };
+        // === ALL CLOUD PROVIDERS - DIRECT API CALLS ===
+        
+        // Get API key from stored keys
+        const storedKeys = store.get('apiKeys') || {};
+        const keyMap = { 
+            'xai': 'grok', 
+            'anthropic': 'anthropic', 
+            'openai': 'openai', 
+            'groq': 'groq', 
+            'deepseek': 'deepseek', 
+            'google': 'google'
+        };
+        const apiKey = storedKeys[keyMap[provider]] || storedKeys[provider] || '';
+        
+        if (!apiKey) {
+            return { output: `Error: No API key configured for ${provider}. Add your key in Runner Settings > API Keys.` };
+        }
+        
+        switch (provider) {
+            case 'openai':
+                return await callOpenAIDirect(apiKey, model, prompt, systemPrompt, images);
+                
+            case 'anthropic':
+                return await callAnthropicDirect(apiKey, model, prompt, systemPrompt, images);
+                
+            case 'google':
+                return await callGoogleDirect(apiKey, model, prompt, systemPrompt, images);
+                
+            case 'groq':
+                return await callGroqDirect(apiKey, model, prompt, systemPrompt, images);
+                
+            case 'deepseek':
+                return await callDeepSeekDirect(apiKey, model, prompt, systemPrompt);
+                
+            case 'xai':
+                return await callXAIDirect(apiKey, model, prompt, systemPrompt, images);
+                
+            default:
+                return { output: `Error: Unknown provider '${provider}'` };
+        }
+        
     } catch (err) {
-        addLog(flow?.id || 'system', flow?.name || 'LLM', 'error', err.message);
-        return { output: `LLM Error: ${err.message}` };
+        addLog(flow?.id || 'system', flow?.name || 'LLM', 'error', `${provider} error: ${err.message}`);
+        return { output: `Error: ${err.message}` };
     }
 }
 
@@ -1543,7 +1779,7 @@ RULES:
                 ...settings,
                 systemPrompt: systemPrompt,
                 system: systemPrompt
-            });
+            }, flow);
             
             const response = llmResult.output || '';
             trace.push(`Step ${step + 1}: ${response.substring(0, 200)}`);
@@ -2326,9 +2562,10 @@ function startLocalServer() {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 ok: true,
-                version: '1.0.0',
+                version: '1.2.0',
                 active_flows: runningFlows.size,
-                total_flows: (store.get('flows') || []).length
+                total_flows: (store.get('flows') || []).length,
+                privacy: 'direct-api-calls'
             }));
             return;
         }
