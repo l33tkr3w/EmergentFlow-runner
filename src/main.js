@@ -1097,7 +1097,11 @@ async function executeLLMNode(node, inputs, settings, flow = {}) {
 
 async function executeOllamaNode(node, inputs, settings) {
     // Use URL from settings (passed from flow config) or fall back to stored setting
-    const ollamaUrl = settings.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
+    let ollamaUrl = settings.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
+    
+    // Remove trailing slash to prevent double-slash in URL
+    ollamaUrl = ollamaUrl.replace(/\/+$/, '');
+    
     const model = settings.model || node.data?.model || 'llama2';
     const systemPrompt = settings.systemPrompt || node.data?.systemPrompt || '';
     
