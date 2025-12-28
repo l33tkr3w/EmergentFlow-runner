@@ -836,7 +836,9 @@ async function executeNodeByType(node, inputs, flow) {
                 return await executeLLMNode(node, inputs, settings, flow);
 
             case 'ollama':
-                return await executeOllamaNode(node, inputs, settings);
+                // Pass ollamaUrl from flow config
+                const ollamaSettings = { ...settings, ollamaUrl: flow.config?.ollamaUrl };
+                return await executeOllamaNode(node, inputs, ollamaSettings);
 
             case 'agent':
             case 'report_agent':
@@ -1010,16 +1012,26 @@ async function executeNodeByType(node, inputs, flow) {
 }
 
 async function executeLLMNode(node, inputs, settings, flow = {}) {
-    // Get provider - if 'default' or empty, use the flow's default provider
+    // Use exact configuration from flow - no fallbacks or switching
+    const flowConfig = flow.config || {};
+    
+    // Get provider from node, or flow's default config
     let provider = settings.provider || node.data?.provider || '';
     if (!provider || provider === 'default') {
-        provider = flow.defaultProvider || store.get('settings.defaultProvider') || 'ollama';
+        provider = flowConfig.provider || 'ollama';
     }
     
-    const model = settings.model || node.data?.model || flow.defaultModel || '';
+    // Get model from node, or flow's default config  
+    const model = settings.model || node.data?.model || flowConfig.model || '';
     const systemPrompt = settings.systemPrompt || settings.system || '';
     
-    // Get API key for this provider
+    // If Ollama, route directly to local - use URL from flow config
+    if (provider === 'ollama') {
+        const ollamaUrl = flowConfig.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
+        return await executeOllamaNode(node, inputs, { ...settings, model, ollamaUrl });
+    }
+    
+    // For cloud providers, get API key
     const storedKeys = store.get('apiKeys') || {};
     const keyMap = { 'xai': 'grok', 'anthropic': 'anthropic', 'openai': 'openai', 'groq': 'groq', 'deepseek': 'deepseek', 'google': 'google', 'gemini': 'google' };
     const apiKey = storedKeys[keyMap[provider]] || storedKeys[provider] || '';
@@ -1080,7 +1092,8 @@ async function executeLLMNode(node, inputs, settings, flow = {}) {
 }
 
 async function executeOllamaNode(node, inputs, settings) {
-    const ollamaUrl = store.get('settings.ollamaUrl') || 'http://localhost:11434';
+    // Use URL from settings (passed from flow config) or fall back to stored setting
+    const ollamaUrl = settings.ollamaUrl || store.get('settings.ollamaUrl') || 'http://localhost:11434';
     const model = settings.model || 'llama2';
     const systemPrompt = settings.systemPrompt || '';
     
@@ -1094,6 +1107,8 @@ async function executeOllamaNode(node, inputs, settings) {
         const messages = [];
         if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
         messages.push({ role: 'user', content: prompt });
+        
+        console.log(`[Ollama] Calling ${ollamaUrl} with model ${model}`);
 
         const res = await fetch(`${ollamaUrl}/api/chat`, {
             method: 'POST',
