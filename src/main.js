@@ -1708,7 +1708,7 @@ async function executeSearchNode(node, inputs, settings) {
     try {
         addLog('system', 'Search', 'info', `Searching: "${query}" via server`);
         
-        const res = await fetch(`${API_URL}/browser/search`, {
+        const res = await fetch(`${API_URL}/api/browser/search`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
