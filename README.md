@@ -47,7 +47,7 @@ The Runner enables direct database connections that browsers cannot make:
 
 ### Development
 
-```bash
+bash
 # Install dependencies
 npm install
 
@@ -64,11 +64,11 @@ npm run build
 npm run build:win
 npm run build:mac
 npm run build:linux
-```
+
 
 ### Project Structure
 
-```
+
 runner/
 ├── src/
 │   ├── main.js      # Electron main process
@@ -80,7 +80,7 @@ runner/
 └── .github/
     └── workflows/
         └── build.yml  # GitHub Actions for releases
-```
+
 
 ### Database Module
 
@@ -91,20 +91,20 @@ The `database.js` module provides:
 - **Error Handling**: All errors returned consistently
 - **Cleanup**: Connections closed on app quit
 
-```javascript
+javascript
 // IPC handlers registered automatically:
 // db:postgres, db:mysql, db:sqlite, db:mongodb, db:redis
 // db:test (connection test), db:closeAll (cleanup)
-```
+
 
 ### Building Releases
 
 Push a version tag to trigger automatic builds:
 
-```bash
+bash
 git tag v1.1.0
 git push origin v1.1.0
-```
+
 
 GitHub Actions will build for Windows, macOS, and Linux, then create a release.
 
@@ -112,11 +112,11 @@ GitHub Actions will build for Windows, macOS, and Linux, then create a release.
 
 The `better-sqlite3` package requires compilation. The `postinstall` script handles this:
 
-```bash
+bash
 npm run postinstall
 # or manually:
 npx electron-rebuild -f -w better-sqlite3
-```
+
 
 ### How It Works
 
@@ -127,13 +127,5 @@ npx electron-rebuild -f -w better-sqlite3
 5. **Scheduling**: Enabled flows run on their configured schedule
 6. **Local Server**: Port 3742 accepts flow deployments from the web app
 
-### Server-Side Requirements
-
-Your EmergentFlow backend needs these API endpoints:
-
-- `GET /api/runner/flows` - Returns user's flows (requires auth token)
-- `GET /auth/runner-login` - OAuth page that posts token to `localhost:3742/auth-callback`
-
-## License
 
 MIT
