@@ -6,6 +6,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# The release job creates a GitHub Release, which needs write access to repo
+# contents. Without this the default GITHUB_TOKEN is read-only and the release
+# API returns 403 "Resource not accessible by integration".
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -33,10 +39,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build artifacts only. Publishing is done by the dedicated `release` job
+      # below — passing --publish never stops electron-builder from trying to
+      # create the GitHub release itself (which failed with 403 before).
       - name: Build Electron app
-        run: npm run build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build -- --publish never
 
       - name: Upload Windows artifact
         if: matrix.os == 'windows-latest'
