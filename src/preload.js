@@ -31,6 +31,14 @@ contextBridge.exposeInMainWorld('runner', {
     getSettings: () => ipcRenderer.invoke('settings:get'),
     saveSettings: (settings) => ipcRenderer.invoke('settings:save', settings),
 
+    // Local Execution (real code on this machine)
+    getLocalExecSession: () => ipcRenderer.invoke('localExec:getSession'),
+    resetLocalExecSession: () => ipcRenderer.invoke('localExec:resetSession'),
+    getLocalExecAudit: () => ipcRenderer.invoke('localExec:getAudit'),
+    clearLocalExecAudit: () => ipcRenderer.invoke('localExec:clearAudit'),
+    selectSandboxFolder: () => ipcRenderer.invoke('localExec:selectSandbox'),
+    onLocalExecAudit: (callback) => ipcRenderer.on('execAudit:updated', () => callback()),
+
     // API Keys (BYOK)
     getApiKeys: () => ipcRenderer.invoke('apiKeys:get'),
     saveApiKeys: (keys) => ipcRenderer.invoke('apiKeys:save', keys),

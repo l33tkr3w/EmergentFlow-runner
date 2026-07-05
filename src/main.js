@@ -281,7 +281,14 @@ const store = new Store({
             // Execution
             retryFailedFlows: false,
             maxRetries: 3,
-            retryDelaySeconds: 60
+            retryDelaySeconds: 60,
+
+            // Local code execution (real Python on this machine) — OFF by default.
+            // The runner is the security boundary (see RUNNER_CONTRACT.md).
+            localExecEnabled: false,          // master switch that ungates POST /execute
+            localExecNetwork: false,          // allow spawned code to reach the network
+            localExecTimeoutMs: 30000,        // hard cap, also the ceiling clients are clamped to
+            sandboxRoot: app.getPath('documents') + '/EmergentFlow/sandbox'
         },
         // User's own API keys for BYOK
         apiKeys: {
@@ -824,6 +831,15 @@ async function executeNodeByType(node, inputs, flow) {
             case 'start':
             case 'button':
                 return { output: 'triggered' };
+
+            // Marker node: its presence routed this flow to the runner. No-op here.
+            case 'local_runner':
+                return { output: 'running-locally' };
+
+            // Real Python on this machine (runner-hosted flow path). The browser
+            // path goes through POST /execute; here the flow itself contains the node.
+            case 'local_python':
+                return await executeLocalPythonNode(node, inputs, settings, flow);
 
             // === LLM NODES ===
             case 'llm':
@@ -2000,7 +2016,11 @@ ipcMain.handle('settings:save', async (event, settings) => {
             fs.mkdirSync(settings.outputFolder, { recursive: true });
         }
     }
-    
+    // Ensure the local-exec sandbox root exists when set
+    if (settings.sandboxRoot) {
+        try { fs.mkdirSync(settings.sandboxRoot, { recursive: true }); } catch (e) {}
+    }
+
     store.set('settings', settings);
     
     // Handle auto-start
@@ -2055,6 +2075,42 @@ ipcMain.handle('shell:openOutputFolder', async () => {
         return { ok: true };
     }
     return { error: 'Output folder not configured' };
+});
+
+// ============================================
+// LOCAL EXECUTION IPC (settings UI + audit)
+// ============================================
+
+// Whether "Allow this session" is currently active + a way to revoke it.
+ipcMain.handle('localExec:getSession', async () => {
+    return { sessionAllow: execSessionAllow, pythonFound: resolvePython() !== null };
+});
+
+ipcMain.handle('localExec:resetSession', async () => {
+    execSessionAllow = false;
+    return { ok: true };
+});
+
+// Audit log of local code runs (source of truth lives in the runner).
+ipcMain.handle('localExec:getAudit', async () => {
+    return store.get('execAudit') || [];
+});
+
+ipcMain.handle('localExec:clearAudit', async () => {
+    store.set('execAudit', []);
+    return { ok: true };
+});
+
+// Folder picker specialized for the sandbox root.
+ipcMain.handle('localExec:selectSandbox', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory'],
+        title: 'Select Local Execution Sandbox Folder'
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+        return { path: result.filePaths[0] };
+    }
+    return { path: null };
 });
 
 // ============================================
@@ -2545,6 +2601,264 @@ ipcMain.handle('logs:clear', async () => {
 });
 
 // ============================================
+// LOCAL CODE EXECUTION (Python) — RUNNER_CONTRACT.md
+// The runner is the security boundary: it runs code in a scrubbed, sandboxed
+// child process with a hard timeout, best-effort network isolation, and a
+// per-call native confirmation. Nothing here trusts the browser's flags.
+// Default OFF (settings.localExecEnabled). Callers: POST /execute (browser
+// agent / Local Python node) and runner-hosted flows containing local_python.
+// ============================================
+
+const { spawn, execFileSync } = require('child_process');
+
+const RUNNER_MAX_TIMEOUT = 30000;         // absolute ceiling regardless of request
+let execSessionAllow = false;             // "Allow this session" — memory only, cleared on restart
+let _cachedPython;                        // resolved interpreter, or null if none
+
+// Wrapper mirrors the Pyodide node contract: `data` = JSON-decoded input,
+// set `result` for the return value; user print() is captured separately so it
+// never corrupts the structured output.
+const PY_WRAPPER_SRC = [
+    'import sys, json, io, contextlib, traceback',
+    'with open(sys.argv[1], "r", encoding="utf-8") as f:',
+    '    data = json.load(f)',
+    'with open(sys.argv[2], "r", encoding="utf-8") as f:',
+    '    user_src = f.read()',
+    'ns = {"data": data, "result": None}',
+    'buf = io.StringIO()',
+    'err = None',
+    'try:',
+    '    with contextlib.redirect_stdout(buf):',
+    '        exec(compile(user_src, "user_code", "exec"), ns)',
+    'except Exception:',
+    '    err = traceback.format_exc(limit=5)',
+    'res = ns.get("result")',
+    'try:',
+    '    json.dumps(res)',
+    'except Exception:',
+    '    res = str(res)',
+    'with open(sys.argv[3], "w", encoding="utf-8") as f:',
+    '    json.dump({"result": res, "stdout": buf.getvalue()[:262144], "error": err}, f)',
+    ''
+].join('\n');
+
+function resolvePython() {
+    if (_cachedPython !== undefined) return _cachedPython;
+    const candidates = process.platform === 'win32'
+        ? ['python', 'python3', 'py']
+        : ['python3', 'python'];
+    for (const c of candidates) {
+        try {
+            execFileSync(c, ['--version'], { stdio: 'ignore', timeout: 4000 });
+            _cachedPython = c;
+            return c;
+        } catch (e) { /* try next */ }
+    }
+    _cachedPython = null;
+    return null;
+}
+
+function getSandboxRoot() {
+    const s = store.get('settings') || {};
+    return s.sandboxRoot || path.join(app.getPath('documents'), 'EmergentFlow', 'sandbox');
+}
+
+// Resolve `sub` strictly UNDER `root`; throw if it escapes (.., absolute, symlink out).
+function resolveUnder(root, sub) {
+    fs.mkdirSync(root, { recursive: true });
+    const rootReal = fs.realpathSync(root);
+    const full = path.resolve(rootReal, sub || 'ef-workspace');
+    if (full !== rootReal && !full.startsWith(rootReal + path.sep)) {
+        throw new Error('workdir escapes sandbox root');
+    }
+    return full;
+}
+
+// Minimal env: never inherit the user's PATH, tokens, API keys, PYTHONPATH.
+function minimalExecEnv(workDir) {
+    const env = { EF_SANDBOX: '1' };
+    if (process.platform === 'win32') {
+        // Windows needs SystemRoot for the interpreter to initialize; keep TEMP local.
+        env.SystemRoot = process.env.SystemRoot || 'C:\\Windows';
+        env.TEMP = workDir;
+        env.TMP = workDir;
+        env.PATHEXT = process.env.PATHEXT || '.EXE';
+    } else {
+        env.PATH = '/usr/bin:/bin';
+        env.HOME = workDir;
+        env.TMPDIR = workDir;
+    }
+    return env;
+}
+
+function killTree(child) {
+    try {
+        if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F']);
+        else process.kill(-child.pid, 'SIGKILL');  // negative pid = process group (needs detached)
+    } catch (e) { /* already gone */ }
+}
+
+function pushExecAudit(entry) {
+    const list = store.get('execAudit') || [];
+    list.unshift({ ts: Date.now(), ...entry });
+    if (list.length > 100) list.length = 100;
+    store.set('execAudit', list);
+    try { mainWindow?.webContents.send('execAudit:updated'); } catch (e) {}
+}
+
+function safeParseInput(input) {
+    if (input == null || input === '') return '';
+    try { return JSON.parse(input); } catch (e) { return String(input); }
+}
+
+// Native 3-way confirmation. Returns 'deny' | 'once' | 'session'.
+async function confirmExecDialog(payload) {
+    if (execSessionAllow) return 'session';
+    const raw = String(payload.code || '');
+    const preview = raw.slice(0, 400) + (raw.length > 400 ? '\n…(truncated)' : '');
+    try { mainWindow?.show(); } catch (e) {}
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'warning',
+        buttons: ['Deny', 'Allow once', 'Allow this session'],
+        defaultId: 1,
+        cancelId: 0,
+        noLink: true,
+        title: 'Local code execution requested',
+        message: `EmergentFlow wants to run ${payload.language || 'python'} on your machine.`,
+        detail: preview
+    });
+    if (response === 0) return 'deny';
+    if (response === 2) { execSessionAllow = true; return 'session'; }
+    return 'once';
+}
+
+// Core executor. Runs Python in a sandboxed child process and resolves the
+// RUNNER_CONTRACT.md response shape. Does NOT gate/confirm — callers do that.
+async function runLocalPython({ code, input = '', timeout_ms = 15000, allow_network = false, workdir = 'ef-workspace', request_id } = {}) {
+    const started = Date.now();
+
+    const py = resolvePython();
+    if (!py) {
+        return { ok: false, result: null, stdout: '', stderr: '', error: 'No Python interpreter found. Install Python 3 and restart the runner.', blocked: false, duration_ms: Date.now() - started };
+    }
+    if (!code || !String(code).trim()) {
+        return { ok: false, result: null, stdout: '', stderr: '', error: 'No code to run.', blocked: false, duration_ms: Date.now() - started };
+    }
+
+    const settings = store.get('settings') || {};
+    let workDir;
+    try {
+        workDir = resolveUnder(getSandboxRoot(), workdir);
+        fs.mkdirSync(workDir, { recursive: true });
+    } catch (e) {
+        return { ok: false, result: null, stdout: '', stderr: '', error: 'Invalid workdir (escapes sandbox root).', blocked: false, duration_ms: Date.now() - started };
+    }
+
+    // Network is allowed only if BOTH the request asks for it and the user enabled it.
+    const netAllowed = !!allow_network && !!settings.localExecNetwork;
+    let userCode = String(code);
+    if (!netAllowed) {
+        // Best-effort guardrail (not a jail) — neuters the common socket paths.
+        userCode = [
+            'import socket as _efsock',
+            "def _ef_blocked(*a, **k): raise OSError('Network disabled by EmergentFlow')",
+            '_efsock.socket = _ef_blocked',
+            '_efsock.create_connection = _ef_blocked',
+            ''
+        ].join('\n') + userCode;
+    }
+
+    const stem = path.join(workDir, `.ef_${request_id || Date.now()}`);
+    const parts = { in: stem + '_in.json', code: stem + '_code.py', wrap: stem + '_wrap.py', out: stem + '_out.json' };
+    try {
+        fs.writeFileSync(parts.in, JSON.stringify(safeParseInput(input)), 'utf-8');
+        fs.writeFileSync(parts.code, userCode, 'utf-8');
+        fs.writeFileSync(parts.wrap, PY_WRAPPER_SRC, 'utf-8');
+    } catch (e) {
+        return { ok: false, result: null, stdout: '', stderr: '', error: 'Failed to stage sandbox files: ' + e.message, blocked: false, duration_ms: Date.now() - started };
+    }
+
+    const ceiling = Math.min(settings.localExecTimeoutMs || RUNNER_MAX_TIMEOUT, RUNNER_MAX_TIMEOUT);
+    const timeout = Math.max(500, Math.min(timeout_ms || 15000, ceiling));
+
+    return await new Promise((resolve) => {
+        let child;
+        try {
+            child = spawn(py, ['-I', parts.wrap, parts.in, parts.code, parts.out], {
+                cwd: workDir,
+                env: minimalExecEnv(workDir),
+                detached: process.platform !== 'win32',   // POSIX: own process group for tree-kill
+                windowsHide: true
+            });
+        } catch (e) {
+            resolve({ ok: false, result: null, stdout: '', stderr: '', error: 'Failed to spawn Python: ' + e.message, blocked: false, duration_ms: Date.now() - started });
+            return;
+        }
+
+        let stderr = '';
+        let timedOut = false;
+        child.stderr.on('data', d => { if (stderr.length < 262144) stderr += d.toString(); });
+
+        const timer = setTimeout(() => { timedOut = true; killTree(child); }, timeout);
+
+        child.on('error', (e) => {
+            clearTimeout(timer);
+            resolve({ ok: false, result: null, stdout: '', stderr, error: 'Python failed to start: ' + e.message, blocked: false, duration_ms: Date.now() - started });
+        });
+
+        child.on('close', (exitCode) => {
+            clearTimeout(timer);
+            let out = { result: null, stdout: '', error: null };
+            try { out = JSON.parse(fs.readFileSync(parts.out, 'utf-8')); } catch (e) {}
+            try { Object.values(parts).forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); }); } catch (e) {}
+
+            const error = timedOut
+                ? `Timed out after ${timeout}ms`
+                : (out.error || ((exitCode !== 0 && !out.stdout) ? `Exited ${exitCode}: ${stderr.slice(0, 500)}` : null));
+
+            resolve({
+                ok: !error,
+                result: out.result,
+                stdout: out.stdout || '',
+                stderr,
+                error: error || null,
+                blocked: false,
+                duration_ms: Date.now() - started
+            });
+        });
+    });
+}
+
+// local_python inside a runner-hosted flow. Gated on the master switch (the
+// user deployed this flow deliberately, so no per-tick native prompt), but
+// still sandboxed/scrubbed/timed-out like every other run.
+async function executeLocalPythonNode(node, inputs, settings, flow) {
+    const s = store.get('settings') || {};
+    if (!s.localExecEnabled) {
+        addLog(flow.id, flow.name, 'warn', 'local_python skipped: enable Local Execution in the runner settings');
+        return { error: 'Local execution disabled in runner', out: null };
+    }
+    // Agent-supplied code (via the 'code' input) overrides the node's own code;
+    // the 'in' input is data for the script.
+    const code = inputs.code || settings.code || settings.text || '';
+    const input = inputs.in ?? inputs.data ?? inputs.input ?? '';
+    if (!code || !String(code).trim()) {
+        return { error: 'No code to run', out: null };
+    }
+    const res = await runLocalPython({
+        code,
+        input: input == null ? '' : (typeof input === 'string' ? input : JSON.stringify(input)),
+        timeout_ms: s.localExecTimeoutMs || 15000,
+        allow_network: false,
+        workdir: 'ef-workspace',
+        request_id: 'flow-' + (node.id || Date.now())
+    });
+    pushExecAudit({ language: 'python', code: String(code).slice(0, 200), outcome: res.error ? 'error (flow)' : 'ran (flow)' });
+    addLog(flow.id, flow.name, res.error ? 'error' : 'info', `local_python: ${res.error || 'ran in ' + res.duration_ms + 'ms'}`);
+    return { out: res.result ?? res.stdout ?? '', result: res.result, stdout: res.stdout, error: res.error };
+}
+
+// ============================================
 // LOCAL HTTP SERVER (for browser integration)
 // ============================================
 
@@ -2612,15 +2926,70 @@ function startLocalServer() {
 
         // GET /status
         if (url.pathname === '/status' && req.method === 'GET') {
+            const s = store.get('settings') || {};
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 ok: true,
-                version: '1.3.0',
+                version: '1.4.0',
                 active_flows: runningFlows.size,
                 total_flows: (store.get('flows') || []).length,
                 privacy: 'direct-api-calls',
-                features: ['direct-llm', 'api-proxy']  // api-proxy means browser can route through us
+                features: ['direct-llm', 'api-proxy', 'local-exec'],  // local-exec => POST /execute available
+                local_exec: {
+                    enabled: !!s.localExecEnabled,
+                    languages: ['python'],
+                    isolation: 'subprocess',
+                    network_allowed: !!s.localExecNetwork,
+                    sandbox_root: getSandboxRoot()
+                }
             }));
+            return;
+        }
+
+        // POST /execute - Run real code on the user's machine (RUNNER_CONTRACT.md).
+        // The preflight OPTIONS is answered by the global handler above.
+        if (url.pathname === '/execute' && req.method === 'POST') {
+            const s = store.get('settings') || {};
+            // Default off: second switch beyond the browser toggle.
+            if (!s.localExecEnabled) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ ok: false, blocked: true, error: 'Local execution is disabled in the runner. Enable it in the runner’s Settings → Local Execution.' }));
+                return;
+            }
+            let body = '';
+            req.on('data', chunk => body += chunk);
+            req.on('end', async () => {
+                let payload;
+                try { payload = JSON.parse(body); }
+                catch (e) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: 'Invalid JSON body' }));
+                    return;
+                }
+                const language = payload.language || 'python';
+                if (language !== 'python') {
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, error: `Unsupported language: ${language}` }));
+                    return;
+                }
+
+                const codePreview = String(payload.code || '').slice(0, 200);
+                // Per-call confirmation unless the user chose "Allow this session".
+                let choice;
+                try { choice = await confirmExecDialog(payload); }
+                catch (e) { choice = 'deny'; }
+                if (choice === 'deny') {
+                    pushExecAudit({ language, code: codePreview, outcome: 'denied' });
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ ok: false, blocked: true, error: 'User denied' }));
+                    return;
+                }
+
+                const result = await runLocalPython(payload);
+                pushExecAudit({ language, code: codePreview, outcome: result.error ? ('error: ' + result.error).slice(0, 140) : 'ran' });
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(result));
+            });
             return;
         }
         

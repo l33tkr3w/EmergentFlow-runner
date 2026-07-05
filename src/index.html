@@ -9,31 +9,49 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         :root {
-            --bg: #0f1419;
-            --bg-secondary: #1a1f26;
-            --bg-tertiary: #242b33;
-            --border: #2d3640;
-            --text: #e7e9ea;
-            --text-secondary: #8b98a5;
-            --text-muted: #536471;
-            --accent: #3b82f6;
-            --accent-hover: #2563eb;
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --error: #ef4444;
-            --purple: #8b5cf6;
+            --bg: #0b0d13;
+            --bg-secondary: #141824;
+            --bg-tertiary: #1e2333;
+            --bg-elevated: #232a3d;
+            --border: #2a3145;
+            --border-soft: #222839;
+            --text: #eef1f8;
+            --text-secondary: #9aa4bd;
+            --text-muted: #616b85;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --accent-2: #a78bfa;
+            --accent-glow: rgba(139, 92, 246, 0.45);
+            --success: #34d399;
+            --warning: #fbbf24;
+            --error: #f87171;
+            --purple: #a78bfa;
+            --grad-accent: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            --grad-surface: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.18);
+            --shadow-pop: 0 8px 30px rgba(0,0,0,0.45);
+            --radius: 10px;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
+            background:
+                radial-gradient(900px 500px at 100% -10%, rgba(139,92,246,0.10), transparent 60%),
+                radial-gradient(700px 500px at -10% 110%, rgba(99,102,241,0.10), transparent 55%),
+                var(--bg);
             color: var(--text);
             font-size: 13px;
-            line-height: 1.4;
+            line-height: 1.45;
             height: 100vh;
             overflow: hidden;
             user-select: none;
+            -webkit-font-smoothing: antialiased;
         }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border); background-clip: padding-box; }
+        ::-webkit-scrollbar-track { background: transparent; }
 
         #app {
             display: flex;
@@ -47,32 +65,44 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px 16px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--bg-secondary);
+            border-bottom: 1px solid var(--border-soft);
             -webkit-app-region: drag;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
             -webkit-app-region: no-drag;
         }
 
         .logo-dot {
-            width: 10px;
-            height: 10px;
-            background: var(--accent);
+            width: 11px;
+            height: 11px;
+            background: var(--grad-accent);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoPulse {
+            0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+            50% { box-shadow: 0 0 16px var(--accent-glow); }
         }
 
         .logo-text {
-            font-weight: 600;
+            font-weight: 650;
             font-size: 15px;
+            letter-spacing: 0.2px;
         }
 
-        .logo-text span { color: var(--accent); }
+        .logo-text span {
+            background: var(--grad-accent);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
 
         .header-right {
             display: flex;
@@ -169,27 +199,37 @@
         /* Tabs */
         .tabs {
             display: flex;
-            padding: 0 16px;
+            gap: 2px;
+            padding: 6px 10px 0;
             background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--border-soft);
         }
 
         .tab {
             background: none;
             border: none;
             color: var(--text-secondary);
-            padding: 12px 16px;
+            padding: 9px 14px;
             cursor: pointer;
             font-size: 13px;
-            font-weight: 500;
-            border-bottom: 2px solid transparent;
+            font-weight: 550;
+            border-radius: 8px 8px 0 0;
+            position: relative;
             transition: all 0.15s;
         }
 
-        .tab:hover { color: var(--text); }
+        .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
         .tab.active {
-            color: var(--accent);
-            border-bottom-color: var(--accent);
+            color: var(--text);
+            background: var(--bg);
+        }
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            left: 12px; right: 12px; bottom: 0;
+            height: 2px;
+            background: var(--grad-accent);
+            border-radius: 2px;
         }
 
         /* Main Content */
@@ -219,17 +259,33 @@
         }
 
         .flow-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 8px;
-            transition: all 0.15s;
+            background: var(--grad-surface), var(--bg-secondary);
+            border: 1px solid var(--border-soft);
+            border-radius: var(--radius);
+            padding: 13px 14px;
+            margin-bottom: 9px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .flow-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--grad-accent);
+            opacity: 0;
+            transition: opacity 0.15s;
         }
 
         .flow-card:hover {
-            border-color: var(--accent);
+            border-color: var(--border);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-pop);
         }
+        .flow-card:hover::before { opacity: 1; }
 
         .flow-header {
             display: flex;
@@ -447,19 +503,23 @@
             margin-bottom: 6px;
         }
 
-        .setting-group input[type="text"] {
+        .setting-group input[type="text"],
+        .setting-group input[type="password"],
+        .setting-group input[type="number"] {
             width: 100%;
-            padding: 8px 12px;
+            padding: 9px 12px;
             background: var(--bg);
             border: 1px solid var(--border);
-            border-radius: 6px;
+            border-radius: 8px;
             color: var(--text);
             font-size: 13px;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
 
         .setting-group input:focus {
             outline: none;
             border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
         .setting-row {
@@ -576,14 +636,17 @@
 
         .btn.primary {
             flex: 1;
-            background: var(--accent);
+            background: var(--grad-accent);
             color: white;
-            border-color: var(--accent);
+            border-color: transparent;
+            box-shadow: 0 4px 14px var(--accent-glow);
         }
 
         .btn.primary:hover {
-            background: var(--accent-hover);
+            filter: brightness(1.08);
+            box-shadow: 0 6px 20px var(--accent-glow);
         }
+        .btn.primary:active { filter: brightness(0.96); }
 
         .btn.secondary {
             background: var(--bg-tertiary);
@@ -601,11 +664,96 @@
             cursor: not-allowed;
         }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+        /* ===== Local Execution settings section ===== */
+        .local-exec-section {
+            background: linear-gradient(180deg, rgba(139,92,246,0.06), rgba(139,92,246,0.01));
+            border: 1px solid rgba(139,92,246,0.22);
+            border-radius: var(--radius);
+            padding: 14px 14px 4px;
+            margin-bottom: 20px;
+        }
+        .local-exec-section .settings-title { display: flex; align-items: center; gap: 8px; }
+
+        .lx-badge {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .lx-badge.on {
+            background: rgba(52,211,153,0.15);
+            color: var(--success);
+            border-color: rgba(52,211,153,0.4);
+        }
+
+        .lx-warning {
+            font-size: 11px;
+            line-height: 1.5;
+            color: #fcd9a6;
+            background: rgba(251,191,36,0.08);
+            border: 1px solid rgba(251,191,36,0.25);
+            border-radius: 8px;
+            padding: 9px 11px;
+            margin-bottom: 12px;
+        }
+        .lx-sub { color: var(--text-muted); font-weight: 400; font-size: 11px; }
+
+        .lx-session-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0 4px;
+            font-size: 11px;
+        }
+        .lx-python { color: var(--success); }
+        .lx-python.missing { color: var(--warning); }
+        .lx-session { color: var(--text-muted); }
+        .lx-session a { color: var(--accent-2); text-decoration: none; }
+        .lx-session a:hover { text-decoration: underline; }
+
+        .lx-audit {
+            margin-top: 12px;
+            border-top: 1px solid var(--border-soft);
+            padding-top: 10px;
+        }
+        .lx-audit-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .lx-audit-list {
+            max-height: 160px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        .lx-audit-empty { font-size: 11px; color: var(--text-muted); padding: 8px 2px; }
+        .lx-audit-item {
+            display: grid;
+            grid-template-columns: 62px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            padding: 5px 8px;
+            font-size: 10.5px;
+            border-radius: 6px;
+            border-left: 2px solid var(--border);
+        }
+        .lx-audit-item + .lx-audit-item { margin-top: 3px; }
+        .lx-audit-item.ok { border-left-color: var(--success); }
+        .lx-audit-item.err { border-left-color: var(--error); }
+        .lx-audit-item.denied { border-left-color: var(--warning); }
+        .lx-audit-time { color: var(--text-muted); }
+        .lx-audit-code { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lx-audit-outcome { color: var(--text-muted); text-align: right; }
+        .lx-audit-item.ok .lx-audit-outcome { color: var(--success); }
+        .lx-audit-item.err .lx-audit-outcome { color: var(--error); }
 
         /* History */
         .history-list {
@@ -1191,6 +1339,46 @@
                         <div class="setting-group">
                             <label>Ollama URL</label>
                             <input type="text" id="ollamaUrl" placeholder="http://localhost:11434">
+                        </div>
+                    </div>
+
+                    <div class="settings-section local-exec-section">
+                        <h3 class="settings-title">🖥️ Local Execution <span class="lx-badge" id="lxBadge">OFF</span></h3>
+                        <p class="settings-hint">Let flows and AI agents run <strong>real Python on this machine</strong> — filesystem, installed packages, system access. The runner sandboxes each run, scrubs the environment, enforces a timeout, and asks you before every run.</p>
+                        <div class="lx-warning">
+                            ⚠️ Only enable this if you understand the risk. An agent that reads email or web pages can be tricked by malicious content into running harmful code. Keep it OFF unless you need it.
+                        </div>
+                        <div class="setting-row">
+                            <span>Enable local execution</span>
+                            <div class="toggle" id="localExecEnabled"></div>
+                        </div>
+                        <div class="setting-row">
+                            <span>Allow network access <span class="lx-sub">(off = best-effort block)</span></span>
+                            <div class="toggle" id="localExecNetwork"></div>
+                        </div>
+                        <div class="setting-group" style="margin-top:12px;">
+                            <label>Sandbox folder <span class="lx-sub">code runs here, and nowhere above it</span></label>
+                            <div class="folder-input">
+                                <input type="text" id="sandboxRoot" readonly placeholder="Select sandbox folder...">
+                                <button class="folder-btn" id="selectSandboxBtn">Browse</button>
+                            </div>
+                        </div>
+                        <div class="setting-group">
+                            <label>Max timeout (seconds) <span class="lx-sub">hard cap, ≤ 30</span></label>
+                            <input type="number" id="localExecTimeout" min="1" max="30" step="1" placeholder="30">
+                        </div>
+                        <div class="lx-session-row">
+                            <span id="pythonStatus" class="lx-python">Python: checking…</span>
+                            <span id="sessionTrustState" class="lx-session"></span>
+                        </div>
+                        <div class="lx-audit">
+                            <div class="lx-audit-head">
+                                <span>Recent runs</span>
+                                <button class="text-btn danger" id="clearAuditBtn">Clear</button>
+                            </div>
+                            <div id="execAuditList" class="lx-audit-list">
+                                <div class="lx-audit-empty">No local runs yet</div>
+                            </div>
                         </div>
                     </div>
 
@@ -2022,6 +2210,17 @@
                 document.getElementById('notifications')?.classList.toggle('on', settings.notifications !== false);
                 document.getElementById('notifyOnComplete')?.classList.toggle('on', settings.notifyOnComplete !== false);
                 document.getElementById('notifyOnError')?.classList.toggle('on', settings.notifyOnError !== false);
+
+                // Local Execution
+                document.getElementById('localExecEnabled')?.classList.toggle('on', !!settings.localExecEnabled);
+                document.getElementById('localExecNetwork')?.classList.toggle('on', !!settings.localExecNetwork);
+                const sandboxRoot = document.getElementById('sandboxRoot');
+                const lxTimeout = document.getElementById('localExecTimeout');
+                if (sandboxRoot) sandboxRoot.value = settings.sandboxRoot || '';
+                if (lxTimeout) lxTimeout.value = Math.round((settings.localExecTimeoutMs || 30000) / 1000);
+                updateLxBadge(!!settings.localExecEnabled);
+                loadLocalExecStatus();
+                loadExecAudit();
                 
                 // API Keys
                 const keyOpenai = document.getElementById('apiKeyOpenai');
@@ -2041,6 +2240,7 @@
 
         async function saveSettings() {
             try {
+                const timeoutSec = Math.max(1, Math.min(30, parseInt(document.getElementById('localExecTimeout')?.value) || 30));
                 const settings = {
                     outputFolder: document.getElementById('outputFolder')?.value || '',
                     ollamaUrl: document.getElementById('ollamaUrl')?.value || 'http://localhost:11434',
@@ -2050,6 +2250,11 @@
                     notifications: document.getElementById('notifications')?.classList.contains('on') !== false,
                     notifyOnComplete: document.getElementById('notifyOnComplete')?.classList.contains('on') !== false,
                     notifyOnError: document.getElementById('notifyOnError')?.classList.contains('on') !== false,
+                    // Local Execution
+                    localExecEnabled: document.getElementById('localExecEnabled')?.classList.contains('on') || false,
+                    localExecNetwork: document.getElementById('localExecNetwork')?.classList.contains('on') || false,
+                    localExecTimeoutMs: timeoutSec * 1000,
+                    sandboxRoot: document.getElementById('sandboxRoot')?.value || '',
                     maxRetries: 3,
                     retryDelaySeconds: 60
                 };
@@ -2064,11 +2269,68 @@
                 
                 await window.runner.saveSettings(settings);
                 await window.runner.saveApiKeys(apiKeys);
-                
+
                 showToast('Settings saved!');
+                updateLxBadge(settings.localExecEnabled);
             } catch (e) {
                 console.error('saveSettings error:', e);
             }
+        }
+
+        // === LOCAL EXECUTION UI HELPERS ===
+        function updateLxBadge(enabled) {
+            const badge = document.getElementById('lxBadge');
+            if (!badge) return;
+            badge.textContent = enabled ? 'ON' : 'OFF';
+            badge.classList.toggle('on', !!enabled);
+        }
+
+        async function loadLocalExecStatus() {
+            try {
+                const s = await window.runner.getLocalExecSession();
+                const py = document.getElementById('pythonStatus');
+                if (py) {
+                    py.textContent = s.pythonFound ? 'Python: detected ✓' : 'Python: not found — install Python 3';
+                    py.classList.toggle('missing', !s.pythonFound);
+                }
+                const trust = document.getElementById('sessionTrustState');
+                if (trust) {
+                    if (s.sessionAllow) {
+                        trust.innerHTML = 'Trusted this session · <a href="#" id="resetSessionLink">revoke</a>';
+                        document.getElementById('resetSessionLink')?.addEventListener('click', async (e) => {
+                            e.preventDefault();
+                            await window.runner.resetLocalExecSession();
+                            loadLocalExecStatus();
+                            showToast('Session trust revoked');
+                        });
+                    } else {
+                        trust.textContent = 'Confirms before each run';
+                    }
+                }
+            } catch (e) { console.error('loadLocalExecStatus error:', e); }
+        }
+
+        async function loadExecAudit() {
+            try {
+                const audit = await window.runner.getLocalExecAudit();
+                const list = document.getElementById('execAuditList');
+                if (!list) return;
+                if (!audit || audit.length === 0) {
+                    list.innerHTML = '<div class="lx-audit-empty">No local runs yet</div>';
+                    return;
+                }
+                list.innerHTML = audit.slice(0, 20).map(a => {
+                    const time = new Date(a.ts).toLocaleTimeString();
+                    const outcome = String(a.outcome || '');
+                    const cls = outcome.startsWith('ran') ? 'ok' : (outcome === 'denied' ? 'denied' : 'err');
+                    const code = (a.code || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 80);
+                    return `<div class="lx-audit-item ${cls}">
+                        <span class="lx-audit-time">${time}</span>
+                        <span class="lx-audit-code">${code || '—'}</span>
+                        <span class="lx-audit-outcome">${outcome}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) { console.error('loadExecAudit error:', e); }
         }
         
         function showToast(message) {
@@ -2220,6 +2482,30 @@
                 const folder = document.getElementById('outputFolder')?.value;
                 if (folder) await window.runner.openFolder(folder);
             });
+
+            // Local Execution: sandbox picker
+            document.getElementById('selectSandboxBtn')?.addEventListener('click', async () => {
+                const result = await window.runner.selectSandboxFolder();
+                if (result?.path) {
+                    const el = document.getElementById('sandboxRoot');
+                    if (el) el.value = result.path;
+                }
+            });
+
+            // Local Execution: clear audit
+            document.getElementById('clearAuditBtn')?.addEventListener('click', async () => {
+                await window.runner.clearLocalExecAudit();
+                loadExecAudit();
+            });
+
+            // Local Execution: live badge as the enable toggle flips
+            document.getElementById('localExecEnabled')?.addEventListener('click', () => {
+                // toggle class flip already happened via the generic handler above
+                updateLxBadge(document.getElementById('localExecEnabled').classList.contains('on'));
+            });
+
+            // Refresh the audit list when a run happens while Settings is open
+            window.runner.onLocalExecAudit?.(() => loadExecAudit());
         }
 
         // IPC Listeners
